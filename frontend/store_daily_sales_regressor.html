@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Store Daily Sales Regressor</title>
+    <style>
+      :root {
+        --accent: #4f46e5;
+        --accent-dark: #4338ca;
+        --bg: #f3f4f6;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --ok-bg: #eef2ff;
+        --err-bg: #fef2f2;
+        --err-text: #b91c1c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+        padding: 32px 16px 64px;
+      }
+      .card {
+        background: var(--card);
+        width: 100%;
+        max-width: 680px;
+        padding: 28px 30px 32px;
+        border-radius: 14px;
+        box-shadow:
+          0 1px 3px rgba(0, 0, 0, 0.08),
+          0 8px 24px rgba(0, 0, 0, 0.04);
+      }
+      .back-link {
+        font-size: 13px;
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .back-link:hover {
+        color: var(--accent);
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 14px;
+        background: var(--ok-bg);
+        color: var(--accent-dark);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 4px 9px;
+        border-radius: 999px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 10px 0 6px;
+      }
+      .lead {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0 0 22px;
+      }
+      .lead code {
+        background: #f9fafb;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      form .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #374151;
+      }
+      .hint {
+        font-weight: 400;
+        color: var(--muted);
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 9px 11px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+        background: #fff;
+        color: var(--text);
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      }
+      input.invalid,
+      select.invalid {
+        border-color: #dc2626;
+        background: #fff5f5;
+      }
+      button {
+        width: 100%;
+        margin-top: 8px;
+        padding: 11px 16px;
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 9px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) {
+        background: var(--accent-dark);
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      #result {
+        margin-top: 20px;
+        padding: 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        display: none;
+      }
+      #result.show {
+        display: block;
+      }
+      #result.ok {
+        background: var(--ok-bg);
+        color: var(--accent-dark);
+      }
+      #result.err {
+        background: var(--err-bg);
+        color: var(--err-text);
+      }
+      #result .figure {
+        font-size: 22px;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <a class="back-link" href="index.html">&larr; All endpoints</a>
+      <span class="badge">Regression</span>
+      <h1>Retail Store Daily Sales Predictor</h1>
+      <p class="lead"
+        >Calls
+        <code
+          >POST /api/v1/models/store-daily-sales-regressor/predictions</code
+        ></p
+      >
+
+      <form id="predictForm" novalidate>
+        <div class="row">
+          <div>
+            <label for="store_size_sqm">Store Size (sqm)</label>
+            <input
+              type="number"
+              step="0.1"
+              id="store_size_sqm"
+              value="180"
+              required
+            />
+          </div>
+          <div>
+            <label for="store_age_years">Store Age (years)</label>
+            <input
+              type="number"
+              step="0.1"
+              id="store_age_years"
+              value="5.2"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="store_format">Store Format</label>
+            <select id="store_format" required>
+              <option>Convenience</option>
+              <option>Hypermarket</option>
+              <option>Kiosk</option>
+              <option selected>Supermarket</option>
+            </select>
+          </div>
+          <div>
+            <label for="location_type">Location Type</label>
+            <select id="location_type" required>
+              <option>CBD</option>
+              <option selected>Mall</option>
+              <option>Residential</option>
+              <option>Street</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="store_size_category">Size Category</label>
+            <select id="store_size_category" required>
+              <option>Small</option>
+              <option selected>Medium</option>
+              <option>Large</option>
+            </select>
+          </div>
+          <div>
+            <label for="delivery_available">Delivery Available</label>
+            <select id="delivery_available" required>
+              <option selected>Yes</option>
+              <option>No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="promotions_active">Active Promotions</label>
+            <input type="number" id="promotions_active" value="2" required />
+          </div>
+          <div>
+            <label for="loyalty_program_members">Loyalty Members</label>
+            <input
+              type="number"
+              id="loyalty_program_members"
+              value="60"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="avg_basket_size_kes">Avg Basket Size (KES)</label>
+            <input
+              type="number"
+              step="0.1"
+              id="avg_basket_size_kes"
+              value="1350"
+              required
+            />
+          </div>
+          <div>
+            <label for="online_order_count">
+              Online Orders <span class="hint">(blank if no delivery)</span>
+            </label>
+            <!-- Deliberately left BLANK here, because the default store delivers.
+               Blanking this while delivery_available = "No" is the structural
+               missingness case: the store has no online orders to count. -->
+            <input
+              type="number"
+              id="online_order_count"
+              value="45"
+              placeholder="blank if no delivery"
+            />
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn">Predict Daily Sales</button>
+      </form>
+
+      <div id="result"></div>
+    </div>
+
+    <script>
+      // A RELATIVE path, not an absolute URL.
+      //   - Works unchanged on the Flask dev server (http://127.0.0.1:5000)
+      //   - Works unchanged through the Nginx reverse proxy (https://localhost)
+      //   - Needs no CORS, because the page and the API share one origin
+      // An absolute http://host:5000 URL would fail inside Docker: port 5000 is
+      // never published to the host, so the only route to the API is via Nginx.
+      const API_URL = "/api/v1/models/store-daily-sales-regressor/predictions";
+
+      const NUMERIC_FIELDS = [
+        "store_size_sqm",
+        "store_age_years",
+        "promotions_active",
+        "loyalty_program_members",
+        "avg_basket_size_kes",
+      ];
+
+      function fieldValue(id) {
+        return document.getElementById(id).value.trim();
+      }
+
+      // Basic input validation: this is the "error handling for missing inputs"
+      // the Advanced tier asks for. It runs BEFORE any network call, so a blank
+      // field produces an instant, specific message instead of a 500 from Flask.
+      function validate_() {
+        const problems = [];
+
+        NUMERIC_FIELDS.forEach((id) => {
+          const el = document.getElementById(id);
+          el.classList.remove("invalid");
+          if (el.value.trim() === "") {
+            el.classList.add("invalid");
+            problems.push(
+              `${el.previousElementSibling.textContent.split("(")[0].trim()} is required`,
+            );
+          } else if (Number.isNaN(Number(el.value))) {
+            el.classList.add("invalid");
+            problems.push(
+              `${el.previousElementSibling.textContent.split("(")[0].trim()} must be a number`,
+            );
+          }
+        });
+
+        [
+          "store_format",
+          "location_type",
+          "store_size_category",
+          "delivery_available",
+        ].forEach((id) => {
+          document.getElementById(id).classList.remove("invalid");
+        });
+
+        const onlineOrders = fieldValue("online_order_count");
+        const onlineOrdersEl = document.getElementById("online_order_count");
+        onlineOrdersEl.classList.remove("invalid");
+        if (onlineOrders !== "" && Number.isNaN(Number(onlineOrders))) {
+          onlineOrdersEl.classList.add("invalid");
+          problems.push(
+            "Online Orders must be a number, or blank if the store has no delivery",
+          );
+        }
+        if (onlineOrders !== "" && fieldValue("delivery_available") === "No") {
+          onlineOrdersEl.classList.add("invalid");
+          problems.push(
+            "A store with no delivery cannot have online orders -- leave that field blank",
+          );
+        }
+
+        return problems;
+      }
+
+      document
+        .getElementById("predictForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const submitBtn = document.getElementById("submitBtn");
+          const result = document.getElementById("result");
+
+          const problems = validate_();
+          if (problems.length > 0) {
+            result.className = "show err";
+            result.innerHTML =
+              "Please fix the following:<br>&bull; " +
+              problems.join("<br>&bull; ");
+            return;
+          }
+
+          const onlineOrders = fieldValue("online_order_count");
+
+          const payload = {
+            store_size_sqm: Number(fieldValue("store_size_sqm")),
+            store_age_years: Number(fieldValue("store_age_years")),
+            store_format: fieldValue("store_format"),
+            location_type: fieldValue("location_type"),
+            store_size_category: fieldValue("store_size_category"),
+            delivery_available: fieldValue("delivery_available"),
+            promotions_active: Number(fieldValue("promotions_active")),
+            loyalty_program_members: Number(
+              fieldValue("loyalty_program_members"),
+            ),
+            avg_basket_size_kes: Number(fieldValue("avg_basket_size_kes")),
+            // Blank -> null, i.e. "this store has no online orders to count".
+            // The pipeline's imputer + missingness indicator handle that case.
+            online_order_count:
+              onlineOrders === "" ? null : Number(onlineOrders),
+          };
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Predicting...";
+          result.className = "";
+
+          try {
+            const response = await fetch(API_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(
+                `Server responded ${response.status}: ${text.slice(0, 200)}`,
+              );
+            }
+
+            const data = await response.json();
+            result.className = "show ok";
+            result.innerHTML =
+              `Model: ${data.model}` +
+              `<div class="figure">KES ${Number(data.predicted_daily_sales_revenue_kes).toLocaleString()}</div>` +
+              `<div class="hint">predicted per day</div>`;
+          } catch (err) {
+            result.className = "show err";
+            result.textContent =
+              "Request failed: " +
+              err.message +
+              " (is api.py running, and is this page served from the same origin?)";
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Predict Daily Sales";
+          }
+        });
+    </script>
+  </body>
+</html>
