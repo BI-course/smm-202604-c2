@@ -71,22 +71,17 @@ CORS(app, resources={r"/api/*": {"origins": [
 ]}})
 
 # -----------------------------------------------------------------------
-# The best practice is to load the four persisted artifacts ONCE, at startup,
-# not per-request.
-# Loading inside a route function would re-read the file from disk on every
-# single API call, which is slow and pointless -- the fitted model never
-# changes while the server is running.
+# Load the persisted artifacts ONCE, at startup, not per-request. Loading
+# inside a route function would re-read the file from disk on every call,
+# which is slow and pointless -- the fitted model never changes while the
+# server is running.
 # -----------------------------------------------------------------------
-# The demo HTML pages live here. Flask serves them on the SAME origin as the
-# API, which is what makes the relative API paths in those pages work during a
-# local demo. In Docker the same job is done by Nginx (`location /` serves
-# ./frontend, `location /api/` proxies to this app). Not production-grade -- a
-# real deployment would use a static host or Nginx -- but it removes CORS from
-# the demo entirely, because the page and the API are one origin.
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
-
 MODEL_DIR = "./model"
 
+# Member 1: retail daily-sales regression (Ridge pipeline). Loads the full
+# pipeline, preprocessing and all, so the route below does no manual encoding
+# or scaling of its own.
 regression_pipeline = joblib.load(
     os.path.join(MODEL_DIR, "ridge_regressor_for_retail_sales.joblib")
 )
@@ -110,12 +105,10 @@ sku_lookup = arm_artifact["sku_lookup"]
 print("All the four artifacts have been loaded. The API is ready.")
 
 
-# 0. STATIC FRONTEND -- serve the demo HTML pages on the API's own origin
-#
-# Example: http://127.0.0.1:5000/store_daily_sales_regressor.html
-# Because the page and the API then share an origin, the page can call the API
-# with a RELATIVE path and the browser performs no CORS preflight at all.
-# This is the local equivalent of what Nginx does in the Docker setup.
+# 0. STATIC FRONTEND -- serve the demo HTML pages from this same Flask app.
+# That keeps the page and the API on one origin during the local demo, so the
+# pages can use a relative API path and the browser never needs a CORS check.
+# In the Docker setup Nginx takes this job over instead.
 @app.route("/")
 def index():
     return send_from_directory(FRONTEND_DIR, "index.html")
@@ -128,10 +121,10 @@ def serve_frontend_file(filename):
 
 # 1. REGRESSION -- predict DAILY sales revenue (KES) for a retail store
 #
-# Group C2's model: Ridge, trained on data/retail_daily_sales.csv (900 stores),
-# target daily_sales_revenue_kes, log1p-transformed because the target is
-# strongly right-skewed (skew 6.56). Held-out: MAE 30,920.61 | RMSE 43,649.52 |
-# R2 0.6707 | MAPE 23.95%.
+# Member 1's model: Ridge on the retail daily-sales dataset (900 stores),
+# target daily_sales_revenue_kes. Trained on the log of revenue because the raw
+# target is heavily right-skewed, so the route converts back with expm1.
+# Saved as model/ridge_regressor_for_retail_sales.joblib.
 #
 # Sample request (cURL):
 #   curl -X POST http://127.0.0.1:5000/api/v1/models/store-daily-sales-regressor/predictions \
@@ -172,14 +165,12 @@ def predict_daily_sales():
     input_row = pd.DataFrame([payload])
 
     # Coerce the numeric fields to float64 before the pipeline sees them.
-    # Two dtype traps hide here, and both produce cryptic errors rather than
-    # anything that points at the cause:
-    #   1. A JSON null (e.g. online_order_count for a store with no delivery)
-    #      makes pandas infer dtype "object", and SimpleImputer silently passes
-    #      object columns through instead of imputing them.
-    #   2. A JSON whole number (180, not 180.0) arrives as int64, and the fitted
-    #      imputer's float64 fill value cannot be cast into it.
-    # Casting to float64 fixes both, and matches how the pipeline was fitted.
+    # Hit this first time I tested a null through the route: pandas makes the
+    # column dtype "object" when the JSON has a null in it, and SimpleImputer
+    # then silently passes the column through unimputed, so Ridge raises a
+    # cryptic NaN error. The same thing happens with whole numbers (180 rather
+    # than 180.0 -> int64, which the fitted imputer's float fill can't be cast
+    # into). Casting everything to float64 up front avoids both.
     for column in NUMERIC_INPUT_FIELDS:
         if column in input_row.columns:
             input_row[column] = pd.to_numeric(
@@ -193,7 +184,7 @@ def predict_daily_sales():
 
     return jsonify({
         "predicted_daily_sales_revenue_kes": round(predicted_revenue_kes, 2),
-        "model": "Ridge Regressor (tuned alpha=1.0, log1p target)",
+        "model": "Ridge Regressor",
     })
 
 
