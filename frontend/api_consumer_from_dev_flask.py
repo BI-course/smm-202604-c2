@@ -55,34 +55,22 @@ def call_endpoint(path, payload):
     return None
 
 
-# 1. REGRESSION -- predict DAILY sales revenue (KES) for a retail store
+# 1. REGRESSION -- predict monthly revenue (KES) for an SME
 
 regression_payload = {
-    "store_size_sqm": 180.0, "promotions_active": 2,
-    "avg_basket_size_kes": 1350.0, "store_age_years": 5.2,
-    "online_order_count": 45.0, "loyalty_program_members": 60,
-    "store_format": "Supermarket", "location_type": "Mall",
-    "delivery_available": "Yes", "store_size_category": "Medium",
+    "sector": "Technology", "county": "Nairobi", "quarter": "Q3",
+    "business_age_years": 4.5, "num_employees": 12,
+    "owner_education_level": "Secondary",
+    "monthly_marketing_spend_kes": 45000,
+    "avg_daily_foot_traffic": None,  # Technology sector: structurally not applicable
+    "online_presence_score": 78.0, "loan_amount_kes": 250000,
+    "interest_rate_pct": 14.5, "inflation_rate_pct": 6.5,
+    "competitor_density": 5, "customer_satisfaction_score": 4.2,
 }
 
-result = call_endpoint("/api/v1/models/store-daily-sales-regressor/predictions", regression_payload)
+result = call_endpoint("/api/v1/models/sme-revenue-regressor/predictions", regression_payload)
 if result is not None:
-    print("Predicted daily sales revenue (KES) =", result["predicted_daily_sales_revenue_kes"])
-
-# Second row: a store with NO delivery. online_order_count is null on purpose --
-# structural missingness, not missing at random. The pipeline handles it.
-no_delivery_payload = {
-    "store_size_sqm": 95.0, "promotions_active": 0,
-    "avg_basket_size_kes": 900.0, "store_age_years": 2.0,
-    "online_order_count": None, "loyalty_program_members": 25,
-    "store_format": "Kiosk", "location_type": "Street",
-    "delivery_available": "No", "store_size_category": "Small",
-}
-
-result = call_endpoint("/api/v1/models/store-daily-sales-regressor/predictions", no_delivery_payload)
-if result is not None:
-    print("Predicted daily sales revenue, no-delivery store (KES) =",
-          result["predicted_daily_sales_revenue_kes"])
+    print("Predicted monthly revenue (KES) =", result["predicted_monthly_revenue_kes"])
 
 print("-" * 60)
 
