@@ -28,8 +28,9 @@ Run this file directly to start a local development server:
 import os
 
 import joblib
+import numpy as np
 import pandas as pd
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -58,22 +59,31 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": [
     "http://localhost:5000", "http://127.0.0.1:5000",
     "http://localhost:5500", "http://127.0.0.1:5500",
+    "http://localhost:8000", "http://127.0.0.1:8000",  # python -m http.server 8000
+    "http://localhost:8080", "http://127.0.0.1:8080",
+    # Through the Nginx reverse proxy there is no port in the origin: the page
+    # and the API share https://localhost, so no CORS entry is needed at all.
+    # That is exactly why the frontend pages are switched to a RELATIVE
+    # API path -- same origin means the browser never asks about CORS.
     "https://localhost:443", "https://127.0.0.1:443",
     "http://localhost:63342",  # VS Code Live Server extension
     "null",  # allows opening a frontend .html file directly (file://) with no web server
 ]}})
 
 # -----------------------------------------------------------------------
-# The best practice is to load the four persisted artifacts ONCE, at startup,
-# not per-request.
-# Loading inside a route function would re-read the file from disk on every
-# single API call, which is slow and pointless -- the fitted model never
-# changes while the server is running.
+# Load the persisted artifacts ONCE, at startup, not per-request. Loading
+# inside a route function would re-read the file from disk on every call,
+# which is slow and pointless -- the fitted model never changes while the
+# server is running.
 # -----------------------------------------------------------------------
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
 MODEL_DIR = "./model"
 
+# Member 1: retail daily-sales regression (Ridge pipeline). Loads the full
+# pipeline, preprocessing and all, so the route below does no manual encoding
+# or scaling of its own.
 regression_pipeline = joblib.load(
-    os.path.join(MODEL_DIR, "lasso_regressor_for_sme_revenue.joblib")
+    os.path.join(MODEL_DIR, "ridge_regressor_for_retail_sales.joblib")
 )
 
 classification_pipeline = joblib.load(
@@ -95,56 +105,86 @@ sku_lookup = arm_artifact["sku_lookup"]
 print("All the four artifacts have been loaded. The API is ready.")
 
 
-# 1. REGRESSION -- predict monthly revenue (KES) for an SME
+# 0. STATIC FRONTEND -- serve the demo HTML pages from this same Flask app.
+# That keeps the page and the API on one origin during the local demo, so the
+# pages can use a relative API path and the browser never needs a CORS check.
+# In the Docker setup Nginx takes this job over instead.
+@app.route("/")
+def index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
 
+
+@app.route("/<path:filename>")
+def serve_frontend_file(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
+
+
+# 1. REGRESSION -- predict DAILY sales revenue (KES) for a retail store
+#
+# Member 1's model: Ridge on the retail daily-sales dataset (900 stores),
+# target daily_sales_revenue_kes. Trained on the log of revenue because the raw
+# target is heavily right-skewed, so the route converts back with expm1.
+# Saved as model/ridge_regressor_for_retail_sales.joblib.
+#
 # Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/sme-revenue-regressor/predictions \
+#   curl -X POST http://127.0.0.1:5000/api/v1/models/store-daily-sales-regressor/predictions \
 #        -H "Content-Type: application/json" \
-#        -d '{"sector": "Technology", "county": "Nairobi", "quarter": "Q3",
-#             "business_age_years": 4.5, "num_employees": 12,
-#             "owner_education_level": "Secondary",
-#             "monthly_marketing_spend_kes": 45000,
-#             "avg_daily_foot_traffic": null,
-#             "online_presence_score": 78.0, "loan_amount_kes": 250000,
-#             "interest_rate_pct": 14.5, "inflation_rate_pct": 6.5,
-#             "competitor_density": 5, "customer_satisfaction_score": 4.2}'
+#        -d '{"store_size_sqm": 180.0, "promotions_active": 2,
+#             "avg_basket_size_kes": 1350.0, "store_age_years": 5.2,
+#             "online_order_count": 45.0, "loyalty_program_members": 60,
+#             "store_format": "Supermarket", "location_type": "Mall",
+#             "delivery_available": "Yes", "store_size_category": "Medium"}'
+#   -> {"predicted_daily_sales_revenue_kes": 208681.74, ...}
 #
 # Sample request (PowerShell):
-#   Invoke-RestMethod -Method Post `
-#     -Uri "http://127.0.0.1:5000/api/v1/models/sme-revenue-regressor/predictions" `
-#     -ContentType "application/json" `
-#     -Body (@{sector="Technology"; county="Nairobi"; quarter="Q3";
-#              business_age_years=4.5; num_employees=12;
-#              owner_education_level="Secondary";
-#              monthly_marketing_spend_kes=45000; avg_daily_foot_traffic=$null;
-#              online_presence_score=78.0; loan_amount_kes=250000;
-#              interest_rate_pct=14.5; inflation_rate_pct=6.5;
-#              competitor_density=5; customer_satisfaction_score=4.2} | ConvertTo-Json)
+#   $body = @{store_size_sqm=180.0; promotions_active=2; avg_basket_size_kes=1350.0;
+#             store_age_years=5.2; online_order_count=45.0; loyalty_program_members=60;
+#             store_format="Supermarket"; location_type="Mall";
+#             delivery_available="Yes"; store_size_category="Medium"} | ConvertTo-Json
+#   Invoke-RestMethod -Method Post -ContentType "application/json" `
+#     -Uri "http://127.0.0.1:5000/api/v1/models/store-daily-sales-regressor/predictions" -Body $body
 #
-# Note: avg_daily_foot_traffic is deliberately null for a Technology-sector
-# business (fully online -- foot traffic is structurally not applicable, not
-# missing at random). The pipeline's own imputer handles the null value; nothing
-# in this file needs to know that rule.
-@app.route("/api/v1/models/sme-revenue-regressor/predictions", methods=["POST"])
-def predict_revenue():
+# Structural missingness: online_order_count is null for a store with
+# delivery_available="No" -- it has no online orders to count, which is not the
+# same as an unknown value. The pipeline handles this itself (constant 0 + a
+# missingness indicator), so nothing here special-cases it.
+NUMERIC_INPUT_FIELDS = [
+    "store_size_sqm", "loyalty_program_members", "promotions_active",
+    "avg_basket_size_kes", "store_age_years", "online_order_count",
+]
+
+
+@app.route("/api/v1/models/store-daily-sales-regressor/predictions", methods=["POST"])
+def predict_daily_sales():
     payload = request.get_json()
 
     # Build a one-row DataFrame straight from the JSON body. No manual
-    # label-encoding, no manual date parsing, no manual column reordering, etc. --
-    # the pipeline's ColumnTransformer already knows which columns it expects
-    # and how to preprocess each one.
+    # encoding, no manual scaling, no manual column reordering -- the pipeline's
+    # ColumnTransformer already knows which columns it expects and how to
+    # preprocess each one.
     input_row = pd.DataFrame([payload])
 
+    # Coerce the numeric fields to float64 before the pipeline sees them.
+    # Hit this first time I tested a null through the route: pandas makes the
+    # column dtype "object" when the JSON has a null in it, and SimpleImputer
+    # then silently passes the column through unimputed, so Ridge raises a
+    # cryptic NaN error. The same thing happens with whole numbers (180 rather
+    # than 180.0 -> int64, which the fitted imputer's float fill can't be cast
+    # into). Casting everything to float64 up front avoids both.
+    for column in NUMERIC_INPUT_FIELDS:
+        if column in input_row.columns:
+            input_row[column] = pd.to_numeric(
+                input_row[column], errors="coerce"
+            ).astype("float64")
+
     predicted_log_revenue = regression_pipeline.predict(input_row)[0]
-    # The pipeline was trained on log1p(revenue) because revenue was
-    # right-skewed; we invert that single transformation here to report the
-    # predictions in KES.
-    import numpy as np
+    # The pipeline was trained on log1p(daily_sales_revenue_kes); expm1 is its
+    # exact inverse and puts the answer back into KES.
     predicted_revenue_kes = float(np.expm1(predicted_log_revenue))
 
     return jsonify({
-        "predicted_monthly_revenue_kes": round(predicted_revenue_kes, 2),
-        "model": "Lasso Regressor",
+        "predicted_daily_sales_revenue_kes": round(predicted_revenue_kes, 2),
+        "model": "Ridge Regressor",
     })
 
 
