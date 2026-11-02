@@ -5,7 +5,7 @@ A RESTish API, built with Flask, that serves FOUR machine learning artifacts
 produced in earlier labs:
 
     1. Regression       -- SME monthly revenue prediction
-    2. Classification   -- SME credit risk category
+    2. Classification   -- SME Corporate financial distress
     3. Clustering       -- Mall customer segment assignment
     4. Association Rule -- Product recommendation from a cart
        Mining (ARM)
@@ -28,8 +28,9 @@ Run this file directly to start a local development server:
 import os
 
 import joblib
+import numpy as np
 import pandas as pd
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -58,26 +59,45 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": [
     "http://localhost:5000", "http://127.0.0.1:5000",
     "http://localhost:5500", "http://127.0.0.1:5500",
+    "http://localhost:8000", "http://127.0.0.1:8000",  # python -m http.server 8000
+    "http://localhost:8080", "http://127.0.0.1:8080",
+    # Through the Nginx reverse proxy there is no port in the origin: the page
+    # and the API share https://localhost, so no CORS entry is needed at all.
+    # That is exactly why the frontend pages are switched to a RELATIVE
+    # API path -- same origin means the browser never asks about CORS.
     "https://localhost:443", "https://127.0.0.1:443",
     "http://localhost:63342",  # VS Code Live Server extension
     "null",  # allows opening a frontend .html file directly (file://) with no web server
 ]}})
 
 # -----------------------------------------------------------------------
-# The best practice is to load the four persisted artifacts ONCE, at startup,
-# not per-request.
-# Loading inside a route function would re-read the file from disk on every
-# single API call, which is slow and pointless -- the fitted model never
-# changes while the server is running.
+# Load the persisted artifacts ONCE, at startup, not per-request. Loading
+# inside a route function would re-read the file from disk on every call,
+# which is slow and pointless -- the fitted model never changes while the
+# server is running.
 # -----------------------------------------------------------------------
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
 MODEL_DIR = "./model"
 
+# Member 1: retail daily-sales regression (Ridge pipeline). Loads the full
+# pipeline, preprocessing and all, so the route below does no manual encoding
+# or scaling of its own.
 regression_pipeline = joblib.load(
-    os.path.join(MODEL_DIR, "lasso_regressor_for_sme_revenue.joblib")
+    os.path.join(MODEL_DIR, "ridge_regressor_for_retail_sales.joblib")
 )
 
+# Member 2: corporate financial distress classification (Logistic Regression
+# inside an imblearn Pipeline: preprocessor -> SMOTE -> LogisticRegression).
+# Created by save_member2_artifact.py. The pipeline predicts 0/1/2, so the
+# LabelEncoder is loaded too, to turn those back into class names.
 classification_pipeline = joblib.load(
-    os.path.join(MODEL_DIR, "svc_classifier_for_sme_credit_risk.joblib")
+    os.path.join(MODEL_DIR, "distress_risk_pipeline.joblib")
+)
+classification_label_encoder = joblib.load(
+    os.path.join(MODEL_DIR, "distress_label_encoder.joblib")
+)
+classification_metadata = joblib.load(
+    os.path.join(MODEL_DIR, "distress_model_metadata.joblib")
 )
 
 
@@ -103,95 +123,170 @@ sku_lookup = arm_artifact["sku_lookup"]
 print("All the four artifacts have been loaded. The API is ready.")
 
 
-# 1. REGRESSION -- predict monthly revenue (KES) for an SME
+# 0. STATIC FRONTEND -- serve the demo HTML pages from this same Flask app.
+# That keeps the page and the API on one origin during the local demo, so the
+# pages can use a relative API path and the browser never needs a CORS check.
+# In the Docker setup Nginx takes this job over instead.
+@app.route("/")
+def index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
 
+
+@app.route("/<path:filename>")
+def serve_frontend_file(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
+
+
+# 1. REGRESSION -- predict DAILY sales revenue (KES) for a retail store
+#
+# Member 1's model: Ridge on the retail daily-sales dataset (900 stores),
+# target daily_sales_revenue_kes. Trained on the log of revenue because the raw
+# target is heavily right-skewed, so the route converts back with expm1.
+# Saved as model/ridge_regressor_for_retail_sales.joblib.
+#
 # Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/sme-revenue-regressor/predictions \
+#   curl -X POST http://127.0.0.1:5000/api/v1/models/store-daily-sales-regressor/predictions \
 #        -H "Content-Type: application/json" \
-#        -d '{"sector": "Technology", "county": "Nairobi", "quarter": "Q3",
-#             "business_age_years": 4.5, "num_employees": 12,
-#             "owner_education_level": "Secondary",
-#             "monthly_marketing_spend_kes": 45000,
-#             "avg_daily_foot_traffic": null,
-#             "online_presence_score": 78.0, "loan_amount_kes": 250000,
-#             "interest_rate_pct": 14.5, "inflation_rate_pct": 6.5,
-#             "competitor_density": 5, "customer_satisfaction_score": 4.2}'
+#        -d '{"store_size_sqm": 180.0, "promotions_active": 2,
+#             "avg_basket_size_kes": 1350.0, "store_age_years": 5.2,
+#             "online_order_count": 45.0, "loyalty_program_members": 60,
+#             "store_format": "Supermarket", "location_type": "Mall",
+#             "delivery_available": "Yes", "store_size_category": "Medium"}'
+#   -> {"predicted_daily_sales_revenue_kes": 208681.74, ...}
 #
 # Sample request (PowerShell):
-#   Invoke-RestMethod -Method Post `
-#     -Uri "http://127.0.0.1:5000/api/v1/models/sme-revenue-regressor/predictions" `
-#     -ContentType "application/json" `
-#     -Body (@{sector="Technology"; county="Nairobi"; quarter="Q3";
-#              business_age_years=4.5; num_employees=12;
-#              owner_education_level="Secondary";
-#              monthly_marketing_spend_kes=45000; avg_daily_foot_traffic=$null;
-#              online_presence_score=78.0; loan_amount_kes=250000;
-#              interest_rate_pct=14.5; inflation_rate_pct=6.5;
-#              competitor_density=5; customer_satisfaction_score=4.2} | ConvertTo-Json)
+#   $body = @{store_size_sqm=180.0; promotions_active=2; avg_basket_size_kes=1350.0;
+#             store_age_years=5.2; online_order_count=45.0; loyalty_program_members=60;
+#             store_format="Supermarket"; location_type="Mall";
+#             delivery_available="Yes"; store_size_category="Medium"} | ConvertTo-Json
+#   Invoke-RestMethod -Method Post -ContentType "application/json" `
+#     -Uri "http://127.0.0.1:5000/api/v1/models/store-daily-sales-regressor/predictions" -Body $body
 #
-# Note: avg_daily_foot_traffic is deliberately null for a Technology-sector
-# business (fully online -- foot traffic is structurally not applicable, not
-# missing at random). The pipeline's own imputer handles the null value; nothing
-# in this file needs to know that rule.
-@app.route("/api/v1/models/sme-revenue-regressor/predictions", methods=["POST"])
-def predict_revenue():
+# Structural missingness: online_order_count is null for a store with
+# delivery_available="No" -- it has no online orders to count, which is not the
+# same as an unknown value. The pipeline handles this itself (constant 0 + a
+# missingness indicator), so nothing here special-cases it.
+NUMERIC_INPUT_FIELDS = [
+    "store_size_sqm", "loyalty_program_members", "promotions_active",
+    "avg_basket_size_kes", "store_age_years", "online_order_count",
+]
+
+
+@app.route("/api/v1/models/store-daily-sales-regressor/predictions", methods=["POST"])
+def predict_daily_sales():
     payload = request.get_json()
 
     # Build a one-row DataFrame straight from the JSON body. No manual
-    # label-encoding, no manual date parsing, no manual column reordering, etc. --
-    # the pipeline's ColumnTransformer already knows which columns it expects
-    # and how to preprocess each one.
+    # encoding, no manual scaling, no manual column reordering -- the pipeline's
+    # ColumnTransformer already knows which columns it expects and how to
+    # preprocess each one.
     input_row = pd.DataFrame([payload])
 
+    # Coerce the numeric fields to float64 before the pipeline sees them.
+    # Hit this first time I tested a null through the route: pandas makes the
+    # column dtype "object" when the JSON has a null in it, and SimpleImputer
+    # then silently passes the column through unimputed, so Ridge raises a
+    # cryptic NaN error. The same thing happens with whole numbers (180 rather
+    # than 180.0 -> int64, which the fitted imputer's float fill can't be cast
+    # into). Casting everything to float64 up front avoids both.
+    for column in NUMERIC_INPUT_FIELDS:
+        if column in input_row.columns:
+            input_row[column] = pd.to_numeric(
+                input_row[column], errors="coerce"
+            ).astype("float64")
+
     predicted_log_revenue = regression_pipeline.predict(input_row)[0]
-    # The pipeline was trained on log1p(revenue) because revenue was
-    # right-skewed; we invert that single transformation here to report the
-    # predictions in KES.
-    import numpy as np
+    # The pipeline was trained on log1p(daily_sales_revenue_kes); expm1 is its
+    # exact inverse and puts the answer back into KES.
     predicted_revenue_kes = float(np.expm1(predicted_log_revenue))
 
     return jsonify({
-        "predicted_monthly_revenue_kes": round(predicted_revenue_kes, 2),
-        "model": "Lasso Regressor",
+        "predicted_daily_sales_revenue_kes": round(predicted_revenue_kes, 2),
+        "model": "Ridge Regressor",
     })
 
 
-# 2. CLASSIFICATION -- predict SME credit risk category (Low/Medium/High)
-
+# 2. CLASSIFICATION -- predict a company's financial distress risk category
+#    (Distressed / Healthy / Watch)
+#
+# Member 2's model: Logistic Regression (C=0.5) on the corporate financial
+# distress dataset (1,400 companies), target distress_risk_category. SMOTE
+# lives inside the pipeline and only runs during .fit(), never at prediction
+# time. Saved as model/distress_risk_pipeline.joblib.
+#
 # Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/sme-credit-risk-classifier/predictions \
+#   curl -X POST http://127.0.0.1:5000/api/v1/models/corporate-distress-classifier/predictions \
 #        -H "Content-Type: application/json" \
-#        -d '{"sector": "Retail", "county": "Nairobi", "quarter": "Q2",
-#             "loan_purpose": "Working Capital", "owner_education_level": "Secondary",
-#             "business_age_years": 2.1, "num_employees": 4,
-#             "monthly_revenue_kes": 850000, "loan_amount_kes": 150000,
-#             "loan_term_months": 12, "interest_rate_pct": 16.5,
-#             "collateral_value_kes": null, "debt_to_income_ratio": 0.62,
-#             "credit_score": 590, "num_previous_loans": 1,
-#             "missed_payments_count": 3, "online_presence_score": 40.0,
-#             "customer_satisfaction_score": 3.4, "competitor_density": 6}'
-#
-#
-# Note: collateral_value_kes is null here because "Working Capital" loans are
-# more often unsecured (structural missingness, not missing at random) --
-# again, the pipeline's imputer + missingness indicator already handles this
-# internally; this route does not need special code for it.
-@app.route("/api/v1/models/sme-credit-risk-classifier/predictions", methods=["POST"])
-def predict_credit_risk():
-    payload = request.get_json()
-    input_row = pd.DataFrame([payload])
+#        -d '{"industry_sector": "Retail", "listing_status": "Private",
+#             "credit_rating_band": "High Risk", "audit_going_concern_flag": null,
+#             "years_in_operation": 3, "num_employees": 12,
+#             "debt_to_equity_ratio": 4.8, "current_ratio": 0.6,
+#             "interest_coverage_ratio": 0.9, "revenue_growth_pct": -18.0,
+#             "net_profit_margin_pct": -5.2, "working_capital_to_assets_ratio": -0.15,
+#             "macroeconomic_interest_rate_pct": 12.5}'
+#   -> {"predicted_distress_risk_category": "Distressed", ...}
 
-    predicted_class = classification_pipeline.predict(input_row)[0]
+
+# Structural missingness: audit_going_concern_flag is null for Private
+# companies -- they are not subject to going-concern audit disclosure. In
+# training this was filled with "Not Flagged" BEFORE the pipeline, so the
+# route must do the same fill to process inputs exactly as in training.
+# net_profit_margin_pct may also be null; the pipeline's median imputer
+# handles that one internally.
+CLASSIFICATION_NUMERIC_FIELDS = classification_metadata["numeric_features"]
+CLASSIFICATION_CATEGORICAL_FIELDS = classification_metadata["categorical_features"]
+CLASSIFICATION_ALLOWED_CATEGORIES = classification_metadata["categories"]
+
+
+@app.route("/api/v1/models/corporate-distress-classifier/predictions", methods=["POST"])
+def predict_distress_risk():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Send a JSON object with Content-Type: application/json."}), 400
+
+    # Every field the pipeline was trained on must be present (company_id is
+    # not needed -- it was excluded from the model as an identifier).
+    required_fields = CLASSIFICATION_NUMERIC_FIELDS + CLASSIFICATION_CATEGORICAL_FIELDS
+    missing_fields = [field for field in required_fields if field not in payload]
+    if missing_fields:
+        return jsonify({"error": "Missing required fields.", "missing_fields": missing_fields}), 400
+
+    input_row = pd.DataFrame([payload])[required_fields]
+
+    # Same upstream fill the notebook did before the pipeline.
+    input_row["audit_going_concern_flag"] = input_row["audit_going_concern_flag"].fillna("Not Flagged")
+
+    # Reject categories the model never saw. The pipeline's OneHotEncoder
+    # would otherwise silently ignore them and still return a prediction.
+    invalid_values = {}
+    for field in CLASSIFICATION_CATEGORICAL_FIELDS:
+        value = input_row.at[0, field]
+        if value not in CLASSIFICATION_ALLOWED_CATEGORIES[field]:
+            invalid_values[field] = {"received": value, "allowed": CLASSIFICATION_ALLOWED_CATEGORIES[field]}
+    if invalid_values:
+        return jsonify({"error": "Invalid category values.", "details": invalid_values}), 400
+
+    # Same float64 coercion as the regression route: a null or a whole number
+    # would otherwise give the column the wrong dtype for the imputer/scaler.
+    for column in CLASSIFICATION_NUMERIC_FIELDS:
+        input_row[column] = pd.to_numeric(input_row[column], errors="coerce").astype("float64")
+
+    # The pipeline was trained on LabelEncoded targets, so it returns 0/1/2;
+    # the label encoder turns those back into Distressed/Healthy/Watch.
+    predicted_code = classification_pipeline.predict(input_row)[0]
+    predicted_class = classification_label_encoder.inverse_transform([predicted_code])[0]
+
     predicted_probabilities = classification_pipeline.predict_proba(input_row)[0]
-    class_labels = classification_pipeline.named_steps["model"].classes_
+    class_codes = classification_pipeline.named_steps["estimator"].classes_
+    class_labels = classification_label_encoder.inverse_transform(class_codes)
 
     return jsonify({
-        "predicted_credit_risk_category": str(predicted_class),
+        "predicted_distress_risk_category": str(predicted_class),
         "class_probabilities": {
             str(label): round(float(prob), 4)
             for label, prob in zip(class_labels, predicted_probabilities)
         },
-        "model": "Support Vector Classifier (tuned, SMOTE-resampled at training only)",
+        "model": "Logistic Regression (C=0.5, SMOTE-resampled at training only)",
     })
 
 
