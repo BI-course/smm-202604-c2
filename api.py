@@ -80,11 +80,19 @@ classification_pipeline = joblib.load(
     os.path.join(MODEL_DIR, "svc_classifier_for_sme_credit_risk.joblib")
 )
 
+
 clustering_artifact = joblib.load(
-    os.path.join(MODEL_DIR, "kmeans_mall_customer_segmentation.joblib")
+    os.path.join(
+        MODEL_DIR,
+        "20261102_102110_kmeans_ecommerce_customer_segmentation.joblib"
+    )
 )
+
+clustering_imputer = clustering_artifact["imputer"]
 clustering_scaler = clustering_artifact["scaler"]
 clustering_kmeans = clustering_artifact["kmeans"]
+clustering_features = clustering_artifact["selected_features"]
+
 
 arm_artifact = joblib.load(
     os.path.join(MODEL_DIR, "apriori_recommendation_rules.joblib")
@@ -187,31 +195,76 @@ def predict_credit_risk():
     })
 
 
-# 3. CLUSTERING -- assign a new mall customer to an existing segment
 
-# Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/mall-customer-segmenter/predictions \
-#        -H "Content-Type: application/json" \
-#        -d '{"Age": 27, "Annual Income (k$)": 45, "Spending Score (1-100)": 72}'
+# -----------------------------------------------------------------------
+# 3. CLUSTERING -- assign an e-commerce customer to a segment
+# -----------------------------------------------------------------------
+
+# Sample request:
+# POST /api/v1/models/ecommerce-customer-segmenter/predictions
 #
-# Note: unlike the two Pipelines above, K-Means does not bundle its own
-# scaler, so this is the one endpoint where the scaling step is applied
-# explicitly (scaler.transform(...) then kmeans.predict(...)) -- exactly the
-# two-object pattern the clustering notebook persisted together for this
-# reason. There is still no manual encoding or feature engineering: the
-# three numeric fields are used exactly as the client sends them.
-@app.route("/api/v1/models/mall-customer-segmenter/predictions", methods=["POST"])
+# JSON:
+# {
+#     "recency_days": 12,
+#     "frequency_per_year": 14,
+#     "avg_order_value_kes": 6200,
+#     "num_categories_purchased": 5
+# }
+
+@app.route(
+    "/api/v1/models/ecommerce-customer-segmenter/predictions",
+    methods=["POST"]
+)
 def predict_customer_segment():
-    payload = request.get_json()
-    input_row = pd.DataFrame([payload])
 
-    scaled_input = clustering_scaler.transform(input_row)
-    assigned_cluster = int(clustering_kmeans.predict(scaled_input)[0])
+    payload = request.get_json(silent=True)
 
-    return jsonify({
-        "assigned_cluster": assigned_cluster,
-        "model": "K-Means (k=5, standardized features)",
-    })
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Please provide customer data as JSON."}), 400
+
+    # Check that all required features are provided
+    missing_features = [
+        feature for feature in clustering_features
+        if feature not in payload
+    ]
+
+    if missing_features:
+        return jsonify({
+            "error": "Missing required customer features.",
+            "missing_features": missing_features
+        }), 400
+
+    try:
+        # Arrange the features in the exact order used during training
+        input_row = pd.DataFrame(
+            [[payload[feature] for feature in clustering_features]],
+            columns=clustering_features
+        )
+
+        # Convert values to numeric
+        input_row = input_row.apply(pd.to_numeric, errors="raise")
+
+        # Apply the saved preprocessing steps
+        imputed_input = clustering_imputer.transform(input_row)
+        scaled_input = clustering_scaler.transform(imputed_input)
+
+        # Predict the customer's cluster
+        assigned_cluster = int(
+            clustering_kmeans.predict(scaled_input)[0]
+        )
+
+        return jsonify({
+            "assigned_cluster": assigned_cluster,
+            "model": "K-Means E-commerce Customer Segmentation",
+            "number_of_clusters": 3
+        }), 200
+
+    except (TypeError, ValueError) as error:
+        return jsonify({
+            "error": "Customer feature values must be numeric or null.",
+            "details": str(error)
+        }), 400
+
 
 
 # 4. ASSOCIATION RULE MINING -- recommend products for a shopping cart
@@ -280,3 +333,4 @@ if __name__ == "__main__":
     # HTTPS/TLS alternative for local development (requires a self-signed
     # certificate; see app_server_reverse_proxy_server_setup.md):
     # app.run(debug=False, ssl_context=("cert.pem", "key.pem"))
+
