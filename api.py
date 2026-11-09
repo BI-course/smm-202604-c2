@@ -104,7 +104,7 @@ classification_metadata = joblib.load(
 clustering_artifact = joblib.load(
     os.path.join(
         MODEL_DIR,
-        "20261102_102110_kmeans_ecommerce_customer_segmentation.joblib"
+        "kmeans_ecommerce_customer_segmentation.joblib"
     )
 )
 
