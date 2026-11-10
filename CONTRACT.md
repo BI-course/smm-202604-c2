@@ -28,7 +28,7 @@ Fill your own row. **Every row must be complete before Phase 2 (API work) begins
 | :------------- | :---------------------------------------- | :---------------- | :----------------------- | :----------------- |
 | Regression     | `ridge_regressor_for_retail_sales.joblib` | fitted `Pipeline` | 10 retail fields (below) | **208,681.74 KES** |
 | Classification | _TBC_                                     | _TBC_             | _TBC_                    | _TBC_              |
-| Clustering     | _TBC_                                     | _TBC_             | _TBC_                    | _TBC_              |
+| Clustering     | `kmeans_ecommerce_customer_segmentation.joblib` | Dictionary (`imputer`, `scaler`, `kmeans`, `selected_features`) | `recency_days=12, frequency_per_year=14, avg_order_value_kes=6200, num_categories_purchased=5` | `assigned_cluster: 0, number_of_clusters: 3` ||
 | Recommender    | _TBC_                                     | _TBC_             | _TBC_                    | _TBC_              |
 
 ### Regression (complete — reference row)
