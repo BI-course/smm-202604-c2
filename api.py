@@ -5,7 +5,7 @@ A RESTish API, built with Flask, that serves FOUR machine learning artifacts
 produced in earlier labs:
 
     1. Regression       -- SME monthly revenue prediction
-    2. Classification   -- SME credit risk category
+    2. Classification   -- SME Corporate financial distress
     3. Clustering       -- Mall customer segment assignment
     4. Association Rule -- Product recommendation from a cart
        Mining (ARM)
@@ -86,8 +86,18 @@ regression_pipeline = joblib.load(
     os.path.join(MODEL_DIR, "ridge_regressor_for_retail_sales.joblib")
 )
 
+# Member 2: corporate financial distress classification (Logistic Regression
+# inside an imblearn Pipeline: preprocessor -> SMOTE -> LogisticRegression).
+# Created by save_member2_artifact.py. The pipeline predicts 0/1/2, so the
+# LabelEncoder is loaded too, to turn those back into class names.
 classification_pipeline = joblib.load(
-    os.path.join(MODEL_DIR, "svc_classifier_for_sme_credit_risk.joblib")
+    os.path.join(MODEL_DIR, "distress_risk_pipeline.joblib")
+)
+classification_label_encoder = joblib.load(
+    os.path.join(MODEL_DIR, "distress_label_encoder.joblib")
+)
+classification_metadata = joblib.load(
+    os.path.join(MODEL_DIR, "distress_model_metadata.joblib")
 )
 
 clustering_artifact = joblib.load(
@@ -188,42 +198,87 @@ def predict_daily_sales():
     })
 
 
-# 2. CLASSIFICATION -- predict SME credit risk category (Low/Medium/High)
-
+# 2. CLASSIFICATION -- predict a company's financial distress risk category
+#    (Distressed / Healthy / Watch)
+#
+# Member 2's model: Logistic Regression (C=0.5) on the corporate financial
+# distress dataset (1,400 companies), target distress_risk_category. SMOTE
+# lives inside the pipeline and only runs during .fit(), never at prediction
+# time. Saved as model/distress_risk_pipeline.joblib.
+#
 # Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/sme-credit-risk-classifier/predictions \
+#   curl -X POST http://127.0.0.1:5000/api/v1/models/corporate-distress-classifier/predictions \
 #        -H "Content-Type: application/json" \
-#        -d '{"sector": "Retail", "county": "Nairobi", "quarter": "Q2",
-#             "loan_purpose": "Working Capital", "owner_education_level": "Secondary",
-#             "business_age_years": 2.1, "num_employees": 4,
-#             "monthly_revenue_kes": 850000, "loan_amount_kes": 150000,
-#             "loan_term_months": 12, "interest_rate_pct": 16.5,
-#             "collateral_value_kes": null, "debt_to_income_ratio": 0.62,
-#             "credit_score": 590, "num_previous_loans": 1,
-#             "missed_payments_count": 3, "online_presence_score": 40.0,
-#             "customer_satisfaction_score": 3.4, "competitor_density": 6}'
-#
-#
-# Note: collateral_value_kes is null here because "Working Capital" loans are
-# more often unsecured (structural missingness, not missing at random) --
-# again, the pipeline's imputer + missingness indicator already handles this
-# internally; this route does not need special code for it.
-@app.route("/api/v1/models/sme-credit-risk-classifier/predictions", methods=["POST"])
-def predict_credit_risk():
-    payload = request.get_json()
-    input_row = pd.DataFrame([payload])
+#        -d '{"industry_sector": "Retail", "listing_status": "Private",
+#             "credit_rating_band": "High Risk", "audit_going_concern_flag": null,
+#             "years_in_operation": 3, "num_employees": 12,
+#             "debt_to_equity_ratio": 4.8, "current_ratio": 0.6,
+#             "interest_coverage_ratio": 0.9, "revenue_growth_pct": -18.0,
+#             "net_profit_margin_pct": -5.2, "working_capital_to_assets_ratio": -0.15,
+#             "macroeconomic_interest_rate_pct": 12.5}'
+#   -> {"predicted_distress_risk_category": "Distressed", ...}
 
-    predicted_class = classification_pipeline.predict(input_row)[0]
+
+# Structural missingness: audit_going_concern_flag is null for Private
+# companies -- they are not subject to going-concern audit disclosure. In
+# training this was filled with "Not Flagged" BEFORE the pipeline, so the
+# route must do the same fill to process inputs exactly as in training.
+# net_profit_margin_pct may also be null; the pipeline's median imputer
+# handles that one internally.
+CLASSIFICATION_NUMERIC_FIELDS = classification_metadata["numeric_features"]
+CLASSIFICATION_CATEGORICAL_FIELDS = classification_metadata["categorical_features"]
+CLASSIFICATION_ALLOWED_CATEGORIES = classification_metadata["categories"]
+
+
+@app.route("/api/v1/models/corporate-distress-classifier/predictions", methods=["POST"])
+def predict_distress_risk():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Send a JSON object with Content-Type: application/json."}), 400
+
+    # Every field the pipeline was trained on must be present (company_id is
+    # not needed -- it was excluded from the model as an identifier).
+    required_fields = CLASSIFICATION_NUMERIC_FIELDS + CLASSIFICATION_CATEGORICAL_FIELDS
+    missing_fields = [field for field in required_fields if field not in payload]
+    if missing_fields:
+        return jsonify({"error": "Missing required fields.", "missing_fields": missing_fields}), 400
+
+    input_row = pd.DataFrame([payload])[required_fields]
+
+    # Same upstream fill the notebook did before the pipeline.
+    input_row["audit_going_concern_flag"] = input_row["audit_going_concern_flag"].fillna("Not Flagged")
+
+    # Reject categories the model never saw. The pipeline's OneHotEncoder
+    # would otherwise silently ignore them and still return a prediction.
+    invalid_values = {}
+    for field in CLASSIFICATION_CATEGORICAL_FIELDS:
+        value = input_row.at[0, field]
+        if value not in CLASSIFICATION_ALLOWED_CATEGORIES[field]:
+            invalid_values[field] = {"received": value, "allowed": CLASSIFICATION_ALLOWED_CATEGORIES[field]}
+    if invalid_values:
+        return jsonify({"error": "Invalid category values.", "details": invalid_values}), 400
+
+    # Same float64 coercion as the regression route: a null or a whole number
+    # would otherwise give the column the wrong dtype for the imputer/scaler.
+    for column in CLASSIFICATION_NUMERIC_FIELDS:
+        input_row[column] = pd.to_numeric(input_row[column], errors="coerce").astype("float64")
+
+    # The pipeline was trained on LabelEncoded targets, so it returns 0/1/2;
+    # the label encoder turns those back into Distressed/Healthy/Watch.
+    predicted_code = classification_pipeline.predict(input_row)[0]
+    predicted_class = classification_label_encoder.inverse_transform([predicted_code])[0]
+
     predicted_probabilities = classification_pipeline.predict_proba(input_row)[0]
-    class_labels = classification_pipeline.named_steps["model"].classes_
+    class_codes = classification_pipeline.named_steps["estimator"].classes_
+    class_labels = classification_label_encoder.inverse_transform(class_codes)
 
     return jsonify({
-        "predicted_credit_risk_category": str(predicted_class),
+        "predicted_distress_risk_category": str(predicted_class),
         "class_probabilities": {
             str(label): round(float(prob), 4)
             for label, prob in zip(class_labels, predicted_probabilities)
         },
-        "model": "Support Vector Classifier (tuned, SMOTE-resampled at training only)",
+        "model": "Logistic Regression (C=0.5, SMOTE-resampled at training only)",
     })
 
 
