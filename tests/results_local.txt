@@ -1,0 +1,90 @@
+Testing http://127.0.0.1:5000
+
+1. Regression (expect 208681.74)
+{
+  "model": "Ridge Regressor",
+  "predicted_daily_sales_revenue_kes": 208681.74
+}
+
+
+2. Classification (expect Distressed)
+{
+  "class_probabilities": {
+    "Distressed": 0.9783,
+    "Healthy": 0.0,
+    "Watch": 0.0217
+  },
+  "model": "Logistic Regression (C=0.5, SMOTE-resampled at training only)",
+  "predicted_distress_risk_category": "Distressed"
+}
+
+
+3. Clustering (expect cluster 0)
+{
+  "assigned_cluster": 0,
+  "model": "K-Means E-commerce Customer Segmentation",
+  "number_of_clusters": 3
+}
+
+
+4. Recommender (expect Galactic Wars)
+{
+  "matched_rules": [
+    {
+      "confidence": 0.774,
+      "if_watched": [
+        "Space Frontier",
+        "Time Anomaly"
+      ],
+      "lift": 5.0,
+      "then_recommend": [
+        "Galactic Wars"
+      ]
+    }
+  ],
+  "message": "1 recommendation(s) found.",
+  "model": "Apriori association rules (11 cleaned rules), precomputed lookup",
+  "recommendations": [
+    {
+      "because_you_watched": [
+        "Space Frontier",
+        "Time Anomaly"
+      ],
+      "category": "Sci-Fi",
+      "confidence": 0.774,
+      "lift": 5.0,
+      "show_id": "S07",
+      "show_name": "Galactic Wars",
+      "support": 0.03
+    }
+  ],
+  "watched": [
+    "Space Frontier",
+    "Time Anomaly"
+  ]
+}
+
+
+5. Recommender, no match (expect empty list)
+{
+  "matched_rules": [],
+  "message": "No association rule matches these shows, so no recommendation is available.",
+  "model": "Apriori association rules (11 cleaned rules), precomputed lookup",
+  "recommendations": [],
+  "watched": [
+    "Crime City"
+  ]
+}
+
+
+6. Error handling, empty input (expect missing-fields error)
+{
+  "error": "Missing required customer features.",
+  "missing_features": [
+    "recency_days",
+    "frequency_per_year",
+    "avg_order_value_kes",
+    "num_categories_purchased"
+  ]
+}
+
