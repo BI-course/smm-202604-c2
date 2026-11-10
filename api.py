@@ -114,11 +114,22 @@ clustering_kmeans = clustering_artifact["kmeans"]
 clustering_features = clustering_artifact["selected_features"]
 
 
+# Member 4: streaming-show recommender. The association rules were mined and
+# cleaned in the ARM lab (Apriori, min_support = 105/3500 sessions,
+# confidence >= 0.50, lift >= 1.50, redundant rules removed -> 11 rules) and
+# saved as one bundle. They are only LOADED here, never re-mined.
 arm_artifact = joblib.load(
     os.path.join(MODEL_DIR, "apriori_recommendation_rules.joblib")
 )
-recommendation_lookup = arm_artifact["recommendation_lookup"]
-sku_lookup = arm_artifact["sku_lookup"]
+arm_rules = arm_artifact["cleaned_rules"]                          # DataFrame of the 11 final rules
+recommendation_lookup = arm_artifact["recommendation_lookup"]      # {frozenset(antecedent show_ids): [rule, ...]}
+show_lookup = arm_artifact["item_lookup"]                          # show_id, item_name, category, ...
+
+show_id_to_name = dict(zip(show_lookup["show_id"], show_lookup["item_name"]))
+show_id_to_category = dict(zip(show_lookup["show_id"], show_lookup["category"]))
+# Case-insensitive lookup so "Crime City", "crime city" and "S01" all resolve to S01
+show_key_to_id = {name.strip().lower(): sid for sid, name in show_id_to_name.items()}
+show_key_to_id.update({sid.lower(): sid for sid in show_id_to_name})
 
 print("All the four artifacts have been loaded. The API is ready.")
 
@@ -362,55 +373,144 @@ def predict_customer_segment():
 
 
 
-# 4. ASSOCIATION RULE MINING -- recommend products for a shopping cart
-
-# Sample request (cURL):
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/ecommerce-recommender/predictions \
-#        -H "Content-Type: application/json" \
-#        -d '{"cart": ["H06", "H07"]}'
+# -----------------------------------------------------------------------
+# 4. ASSOCIATION RULE MINING -- recommend TV shows from a viewing session
+# -----------------------------------------------------------------------
 #
-#   curl -X POST http://127.0.0.1:5000/api/v1/models/ecommerce-recommender/predictions \
-#        -H "Content-Type: application/json" \
-#        -d '{"cart": ["P04", "P01"]}'
+# Member 4's model: Apriori association rules mined from the streaming
+# "series watched" dataset (3,500 viewing sessions, 15 shows). Saved as
+# model/apriori_recommendation_rules.joblib.
 #
-# Note: there is no scikit-learn ".predict()" here -- the mined association
-# rules were precomputed into a lookup dictionary
-# (antecedent SKU-set -> ranked candidate consequents)
-# during the notebook's persistence stage. This
-# endpoint performs the exact same lookup+rank step a production recommender
-# microservice would perform on every incoming request; it does not mine
-# for the rules again.
-@app.route("/api/v1/models/ecommerce-recommender/predictions", methods=["POST"])
-def recommend_products():
-    payload = request.get_json()
-    cart = set(payload.get("cart", []))
-    top_n = int(payload.get("top_n", 3))
-
+# Send the shows a viewer has already watched (names in any case, or show IDs
+# such as "S06"). Every rule whose antecedent shows are ALL in that list is
+# applied, so a 2-show session can still trigger a 1-show rule. Shows already
+# watched are never recommended; if two rules suggest the same show, the
+# higher-confidence rule wins. Results are ranked by confidence, then lift.
+#
+# Sample request (cURL) -- a rule matches:
+#   curl -X POST http://127.0.0.1:5000/api/v1/models/streaming-show-recommender/predictions \
+#        -H "Content-Type: application/json" \
+#        -d '{"watched": ["Space Frontier", "Time Anomaly"], "top_n": 3}'
+#   -> recommends "Galactic Wars" (confidence 0.774, lift 5.0)
+#
+# Sample request (cURL) -- no rule matches:
+#   curl -X POST http://127.0.0.1:5000/api/v1/models/streaming-show-recommender/predictions \
+#        -H "Content-Type: application/json" \
+#        -d '{"watched": ["Crime City"]}'
+#   -> "recommendations": [] with a message explaining why
+#
+# Sample request (PowerShell):
+#   $body = @{watched=@("Space Frontier","Time Anomaly"); top_n=3} | ConvertTo-Json
+#   Invoke-RestMethod -Method Post -ContentType "application/json" `
+#     -Uri "http://127.0.0.1:5000/api/v1/models/streaming-show-recommender/predictions" -Body $body
+#
+# Note: there is no scikit-learn ".predict()" here -- the mined rules were
+# precomputed into a lookup dictionary during the notebook's persistence stage,
+# and this endpoint only does the lookup + rank step on each request.
+def recommend_shows(watched_ids, top_n=3):
+    """Find the saved rules that apply to watched_ids and return ranked recommendations."""
     candidates = {}
-    for antecedent, consequent_list in recommendation_lookup.items():
-        if antecedent.issubset(cart):
-            for sku, confidence, lift in consequent_list:
-                if sku not in cart:
-                    if sku not in candidates or confidence > candidates[sku][0]:
-                        candidates[sku] = (confidence, lift)
+    matched_rules = []
+    for antecedent_ids, rule_entries in recommendation_lookup.items():
+        if not antecedent_ids.issubset(watched_ids):
+            continue
+        for rule in rule_entries:
+            matched_rules.append({
+                "if_watched": sorted(show_id_to_name[s] for s in antecedent_ids),
+                "then_recommend": sorted(show_id_to_name[s] for s in rule["consequents"]),
+                "confidence": round(float(rule["confidence"]), 3),
+                "lift": round(float(rule["lift"]), 2),
+            })
+            for show_id in rule["consequents"]:
+                if show_id in watched_ids:
+                    continue  # never recommend something already watched
+                best = candidates.get(show_id)
+                if best is None or rule["confidence"] > best[0]["confidence"]:
+                    candidates[show_id] = (rule, antecedent_ids)
 
-    ranked = sorted(candidates.items(), key=lambda item: item[1][0], reverse=True)[:top_n]
+    ranked = sorted(
+        candidates.items(),
+        key=lambda item: (item[1][0]["confidence"], item[1][0]["lift"]),
+        reverse=True,
+    )[:top_n]
+
     recommendations = [
         {
-            "sku": str(sku),
-            "product_name": sku_lookup.loc[sku, "product_name"],
-            "confidence": round(float(confidence), 3),
-            "lift": round(float(lift), 2),
+            "show_id": str(show_id),
+            "show_name": show_id_to_name[show_id],
+            "category": show_id_to_category[show_id],
+            "because_you_watched": sorted(show_id_to_name[s] for s in antecedent_ids),
+            "confidence": round(float(rule["confidence"]), 3),
+            "lift": round(float(rule["lift"]), 2),
+            "support": round(float(rule["support"]), 3),
         }
-        for sku, (confidence, lift) in ranked
+        for show_id, (rule, antecedent_ids) in ranked
     ]
+    return recommendations, matched_rules
 
-    return jsonify({
-        "cart": sorted(cart),
+
+@app.route("/api/v1/models/streaming-show-recommender/predictions", methods=["POST"])
+def recommend_streaming_shows():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Send a JSON object with Content-Type: application/json."}), 400
+
+    watched = payload.get("watched", payload.get("cart"))
+    if isinstance(watched, str):
+        watched = [watched]
+    if not isinstance(watched, list) or len(watched) == 0:
+        return jsonify({
+            "error": "Provide 'watched': a non-empty list of shows the viewer has already watched.",
+            "example": {"watched": ["Space Frontier", "Time Anomaly"], "top_n": 3},
+            "valid_shows": sorted(show_id_to_name.values()),
+        }), 400
+
+    try:
+        top_n = int(payload.get("top_n", 3))
+        if top_n < 1:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "'top_n' must be a whole number of 1 or more."}), 400
+
+    unknown_shows = [s for s in watched if str(s).strip().lower() not in show_key_to_id]
+    if len(unknown_shows) == len(watched):
+        return jsonify({
+            "error": "None of the shows sent are in the catalogue.",
+            "unknown_shows": unknown_shows,
+            "valid_shows": sorted(show_id_to_name.values()),
+        }), 400
+
+    watched_ids = frozenset(
+        show_key_to_id[str(s).strip().lower()] for s in watched
+        if str(s).strip().lower() in show_key_to_id
+    )
+    recommendations, matched_rules = recommend_shows(watched_ids, top_n)
+
+    if recommendations:
+        message = f"{len(recommendations)} recommendation(s) found."
+    elif matched_rules:
+        message = "Rules matched, but they only suggest shows already watched, so there is no new recommendation."
+    else:
+        message = "No association rule matches these shows, so no recommendation is available."
+
+    response = {
+        "watched": sorted(show_id_to_name[s] for s in watched_ids),
         "recommendations": recommendations,
-        "model": "Apriori association rules, cleaned + precomputed lookup",
-    })
+        "matched_rules": matched_rules,
+        "message": message,
+        "model": "Apriori association rules (11 cleaned rules), precomputed lookup",
+    }
+    if unknown_shows:
+        response["ignored_unknown_shows"] = unknown_shows
+    return jsonify(response), 200
 
+
+@app.route("/api/v1/models/streaming-show-recommender/shows", methods=["GET"])
+def list_streaming_shows():
+    """List the shows the recommender knows (useful for a frontend dropdown)."""
+    return jsonify({
+        "shows": show_lookup[["show_id", "item_name", "category"]].to_dict(orient="records")
+    }), 200
 
 # -----------------------------------------------------------------------
 # Entry point
@@ -428,4 +528,3 @@ if __name__ == "__main__":
     # HTTPS/TLS alternative for local development (requires a self-signed
     # certificate; see app_server_reverse_proxy_server_setup.md):
     # app.run(debug=False, ssl_context=("cert.pem", "key.pem"))
-
