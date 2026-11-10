@@ -27,9 +27,9 @@ Fill your own row. **Every row must be complete before Phase 2 (API work) begins
 | Model          | File in `model/`                                | Loaded as                                                       | Demo input                                                                                     | Expected output                                                                                    |
 | :------------- |:------------------------------------------------|:----------------------------------------------------------------|:-----------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------|
 | Regression     | `ridge_regressor_for_retail_sales.joblib`       | fitted `Pipeline`                                               | 10 retail fields (below)                                                                       | **208,681.74 KES**                                                                                 |
-| Classification | _TBC_                                           | _TBC_                                                           | _TBC_                                                                                          | _TBC_                                                                                              |
-| Clustering     | `kmeans_ecommerce_customer_segmentation.joblib` | Dictionary (`imputer`, `scaler`, `kmeans`, `selected_features`) | `recency_days=12, frequency_per_year=14, avg_order_value_kes=6200, num_categories_purchased=5` | `assigned_cluster: 0, number_of_clusters: 3`                                                       ||
-| Recommender    | `apriori_recommendation_rules.joblib`           | Dictionary(`cleaned_rules, item_lookup,recommendation_lookup`)  | `watched=["Space Frontier", "Time Anomaly"]`                                                   | `show_name: Galactic Wars, confidence: 0.774, lift: 5.0 `                                           |
+| Classification | `distress_risk_pipeline.joblib` (+ `distress_label_encoder.joblib`, `distress_model_metadata.joblib`) | fitted `imblearn` `Pipeline` + `LabelEncoder` | 13 distress fields (below) | **Distressed** (P=0.9783) |
+| Clustering     | `kmeans_ecommerce_customer_segmentation.joblib` | Dictionary (`imputer`, `scaler`, `kmeans`, `selected_features`) | `recency_days=12, frequency_per_year=14, avg_order_value_kes=6200, num_categories_purchased=5` | `assigned_cluster: 0, number_of_clusters: 3` |
+| Recommender    | `apriori_recommendation_rules.joblib`           | Dictionary (`cleaned_rules`, `item_lookup`, `recommendation_lookup`) | `watched=["Space Frontier", "Time Anomaly"]` | `show_name: Galactic Wars, confidence: 0.774, lift: 5.0` |
 
 ### Regression (complete — reference row)
 
@@ -43,6 +43,32 @@ Valid categorical values: `store_format` ∈ {Convenience, Hypermarket, Kiosk, S
 
 Demo row 1 (delivery store): `180.0, 2, 1350.0, 5.2, 45.0, 60, Supermarket, Mall, Yes, Medium`
 Demo row 2 (structural missingness): `95.0, 0, 900.0, 2.0, null, 25, Kiosk, Street, No, Small`
+
+### Classification (Member 2)
+
+Input keys, exactly these thirteen:
+`industry_sector, listing_status, credit_rating_band, audit_going_concern_flag, years_in_operation,
+num_employees, debt_to_equity_ratio, current_ratio, interest_coverage_ratio, revenue_growth_pct,
+net_profit_margin_pct, working_capital_to_assets_ratio, macroeconomic_interest_rate_pct`
+
+Valid categorical values: `industry_sector` ∈ {Construction, Energy, Manufacturing, Retail, Technology} ·
+`listing_status` ∈ {Private, Public} · `audit_going_concern_flag` ∈ {No, Not Flagged, Yes, null} ·
+`credit_rating_band` ∈ {Investment Grade, Speculative, High Risk}
+
+Demo row (private, high-risk retailer): `Retail, Private, High Risk, null, 3, 12, 4.8, 0.6, 0.9, -18.0, -5.2, -0.15, 12.5`
+→ `predicted_distress_risk_category: "Distressed"`, probabilities `{Distressed: 0.9783, Healthy: 0.0, Watch: 0.0217}`
+
+### Clustering (Member 3)
+
+Input keys, exactly these four: `recency_days, frequency_per_year, avg_order_value_kes, num_categories_purchased`
+
+Demo row: `12, 14, 6200, 5` → `assigned_cluster: 0`, `number_of_clusters: 3`
+
+### Recommender (Member 4)
+
+Input keys: `watched` (list of show names or show IDs, case-insensitive) and optional `top_n` (default 3).
+
+Demo row: `watched=["Space Frontier", "Time Anomaly"]` → `Galactic Wars` (confidence 0.774, lift 5.0)
 
 ---
 
@@ -140,8 +166,8 @@ Each member fills their own row. **A missing row or branch link is −5 marks fo
 | Member | Student ID | Name           | Contribution                                                       | Branch link                                                                | What I learned                                                                                                                                                                                                                                                                               |
 | :----- |:-----------|:---------------|:-------------------------------------------------------------------|:---------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1      |            |                | Retail regression model + API integration (merged all four routes) | `https://github.com/BI-course/smm-202604-c2/tree/feature/regression-retail` |                                                                                                                                                                                                                                                                                              |
-| 2      |            |                | Corporate distress classifier + route                              | `.../feature/classification-distress`                                      |                                                                                                                                                                                                                                                                                              |
-| 3      |            |                | E-commerce clustering + route                                      | `.../feature/clustering-ecommerce`                                         |                                                                                                                                                                                                                                                                                              |
+| 2      |            |                | Corporate distress classifier + route                              | `https://github.com/BI-course/smm-202604-c2/tree/member2-classification-endpoint` |                                                                                                                                                                                                                                                                                              |
+| 3      |            |                | E-commerce clustering + route                                      | `https://github.com/BI-course/smm-202604-c2/tree/feature/clustering-ecommerce` |                                                                                                                                                                                                                                                                                              |
 | 4      | 154683     | Whitney Karimi | Apriori recommender + route. Loaded the saved association rules (apriori_recommendation_rules.joblib) into api.py and built the /api/v1/models/streaming-show-recommender/predictions endpoint                                      | `https://github.com/BI-course/smm-202604-c2/tree/feature/apriori-streaming`| `Mining the association rules is only half the work: the API is what makes them usable. I learned to load saved rules from disk instead of re-mining them on every request, how to match a viewer’s shows against rule antecedents and why ranking by confidence and lift matters.`           |
 | 5      |            |                | Docker, Gunicorn, Nginx reverse proxy                              | `.../feature/docker-gunicorn-nginx`                                        |                                                                                                                                                                                                                                                                                              |
 | 6      |            |                | Render deployment, testing, video                                  | `.../feature/render-deploy`                                                |                                                                                                                                                                                                                                                                                              |
