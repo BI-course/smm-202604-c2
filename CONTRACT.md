@@ -10,11 +10,11 @@ Repo: `https://github.com/BI-course/smm-202604-c2` · Lead: Member 1 · Tier: **
 ## Table A — Owners and branches
 
 | Member | Model / task                                | Branch                            | GitHub username |
-| :----- | :------------------------------------------ | :-------------------------------- | :-------------- |
+| :----- | :------------------------------------------ | :-------------------------------- |:----------------|
 | 1      | Retail daily-sales regression               | `feature/regression-retail`       | _(lead)_        |
 | 2      | Corporate financial distress classification | `feature/classification-distress` | _TBC_           |
 | 3      | E-commerce customer clustering              | `feature/clustering-ecommerce`    | _TBC_           |
-| 4      | Streaming show recommender (Apriori)        | `feature/apriori-streaming`       | _TBC_           |
+| 4      | Streaming show recommender (Apriori)        | `feature/apriori-streaming`       | whitneykrm      |
 | 5      | Docker + Gunicorn + Nginx                   | `feature/docker-gunicorn-nginx`   | _TBC_           |
 | 6      | Render deployment + video                   | `feature/render-deploy`           | _TBC_           |
 
@@ -24,12 +24,12 @@ Repo: `https://github.com/BI-course/smm-202604-c2` · Lead: Member 1 · Tier: **
 
 Fill your own row. **Every row must be complete before Phase 2 (API work) begins.**
 
-| Model          | File in `model/`                          | Loaded as         | Demo input               | Expected output    |
-| :------------- | :---------------------------------------- | :---------------- | :----------------------- | :----------------- |
-| Regression     | `ridge_regressor_for_retail_sales.joblib` | fitted `Pipeline` | 10 retail fields (below) | **208,681.74 KES** |
-| Classification | _TBC_                                     | _TBC_             | _TBC_                    | _TBC_              |
-| Clustering     | `kmeans_ecommerce_customer_segmentation.joblib` | Dictionary (`imputer`, `scaler`, `kmeans`, `selected_features`) | `recency_days=12, frequency_per_year=14, avg_order_value_kes=6200, num_categories_purchased=5` | `assigned_cluster: 0, number_of_clusters: 3` ||
-| Recommender    | _TBC_                                     | _TBC_             | _TBC_                    | _TBC_              |
+| Model          | File in `model/`                                | Loaded as                                                       | Demo input                                                                                     | Expected output                                                                                    |
+| :------------- |:------------------------------------------------|:----------------------------------------------------------------|:-----------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------|
+| Regression     | `ridge_regressor_for_retail_sales.joblib`       | fitted `Pipeline`                                               | 10 retail fields (below)                                                                       | **208,681.74 KES**                                                                                 |
+| Classification | _TBC_                                           | _TBC_                                                           | _TBC_                                                                                          | _TBC_                                                                                              |
+| Clustering     | `kmeans_ecommerce_customer_segmentation.joblib` | Dictionary (`imputer`, `scaler`, `kmeans`, `selected_features`) | `recency_days=12, frequency_per_year=14, avg_order_value_kes=6200, num_categories_purchased=5` | `assigned_cluster: 0, number_of_clusters: 3`                                                       ||
+| Recommender    | `apriori_recommendation_rules.joblib`           | Dictionary(`cleaned_rules, item_lookup,recommendation_lookup`)  | `watched=["Space Frontier", "Time Anomaly"]`                                                   | `show_name: Galactic Wars, confidence: 0.774, lift: 5.0 `                                           |
 
 ### Regression (complete — reference row)
 
@@ -137,11 +137,11 @@ Save `{"cleaned_rules", "item_lookup", "recommendation_lookup"}` as
 
 Each member fills their own row. **A missing row or branch link is −5 marks for that member.**
 
-| Member | Student ID | Name | Contribution                                                       | Branch link                                                                 | What I learned |
-| :----- | :--------- | :--- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------- | :------------- |
-| 1      |            |      | Retail regression model + API integration (merged all four routes) | `https://github.com/BI-course/smm-202604-c2/tree/feature/regression-retail` |                |
-| 2      |            |      | Corporate distress classifier + route                              | `.../feature/classification-distress`                                       |                |
-| 3      |            |      | E-commerce clustering + route                                      | `.../feature/clustering-ecommerce`                                          |                |
-| 4      |            |      | Apriori recommender + route                                        | `.../feature/apriori-streaming`                                             |                |
-| 5      |            |      | Docker, Gunicorn, Nginx reverse proxy                              | `.../feature/docker-gunicorn-nginx`                                         |                |
-| 6      |            |      | Render deployment, testing, video                                  | `.../feature/render-deploy`                                                 |                |
+| Member | Student ID | Name           | Contribution                                                       | Branch link                                                                | What I learned                                                                                                                                                                                                                                                                               |
+| :----- |:-----------|:---------------|:-------------------------------------------------------------------|:---------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1      |            |                | Retail regression model + API integration (merged all four routes) | `https://github.com/BI-course/smm-202604-c2/tree/feature/regression-retail` |                                                                                                                                                                                                                                                                                              |
+| 2      |            |                | Corporate distress classifier + route                              | `.../feature/classification-distress`                                      |                                                                                                                                                                                                                                                                                              |
+| 3      |            |                | E-commerce clustering + route                                      | `.../feature/clustering-ecommerce`                                         |                                                                                                                                                                                                                                                                                              |
+| 4      | 154683     | Whitney Karimi | Apriori recommender + route. Loaded the saved association rules (apriori_recommendation_rules.joblib) into api.py and built the /api/v1/models/streaming-show-recommender/predictions endpoint                                      | `https://github.com/BI-course/smm-202604-c2/tree/feature/apriori-streaming`| `Mining the association rules is only half the work: the API is what makes them usable. I learned to load saved rules from disk instead of re-mining them on every request, how to match a viewer’s shows against rule antecedents and why ranking by confidence and lift matters.`           |
+| 5      |            |                | Docker, Gunicorn, Nginx reverse proxy                              | `.../feature/docker-gunicorn-nginx`                                        |                                                                                                                                                                                                                                                                                              |
+| 6      |            |                | Render deployment, testing, video                                  | `.../feature/render-deploy`                                                |                                                                                                                                                                                                                                                                                              |
