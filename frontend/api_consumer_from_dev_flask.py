@@ -7,10 +7,10 @@ api.py first (python api.py), then run this script separately.
 
 This mirrors api.py's four artifacts one-to-one:
 
-    1. Regression        -- /api/v1/models/sme-revenue-regressor/predictions
-    2. Classification     -- /api/v1/models/sme-credit-risk-classifier/predictions
-    3. Clustering         -- /api/v1/models/mall-customer-segmenter/predictions
-    4. Association Rule   -- /api/v1/models/ecommerce-recommender/predictions
+    1. Regression        -- /api/v1/models/store-daily-sales-regressor/predictions
+    2. Classification     -- /api/v1/models/corporate-distress-classifier/predictions
+    3. Clustering         -- /api/v1/models/ecommerce-customer-segmenter/predictions
+    4. Association Rule   -- /api/v1/models/streaming-show-recommender/predictions
        Mining (ARM)
 
 Each call uses the same requests.post(..., json=payload, headers=headers)
@@ -88,54 +88,54 @@ print("-" * 60)
 
 
 
-# 2. CLASSIFICATION -- predict SME credit risk category (Low/Medium/High)
+# 2. CLASSIFICATION -- predict corporate financial distress (Distressed/Healthy/Watch)
 
 classification_payload = {
-    "sector": "Retail", "county": "Nairobi", "quarter": "Q2",
-    "loan_purpose": "Working Capital", "owner_education_level": "Secondary",
-    "business_age_years": 2.1, "num_employees": 4,
-    "monthly_revenue_kes": 850000, "loan_amount_kes": 150000,
-    "loan_term_months": 12, "interest_rate_pct": 16.5,
-    "collateral_value_kes": None,  # Working Capital loans are more often unsecured
-    "debt_to_income_ratio": 0.62,
-    "credit_score": 590, "num_previous_loans": 1,
-    "missed_payments_count": 3, "online_presence_score": 40.0,
-    "customer_satisfaction_score": 3.4, "competitor_density": 6,
+    "industry_sector": "Retail", "listing_status": "Private",
+    "credit_rating_band": "High Risk",
+    "audit_going_concern_flag": None,  # Private companies: structural missingness
+    "years_in_operation": 3, "num_employees": 12,
+    "debt_to_equity_ratio": 4.8, "current_ratio": 0.6,
+    "interest_coverage_ratio": 0.9, "revenue_growth_pct": -18.0,
+    "net_profit_margin_pct": -5.2, "working_capital_to_assets_ratio": -0.15,
+    "macroeconomic_interest_rate_pct": 12.5,
 }
 
-result = call_endpoint("/api/v1/models/sme-credit-risk-classifier/predictions", classification_payload)
+result = call_endpoint("/api/v1/models/corporate-distress-classifier/predictions", classification_payload)
 if result is not None:
-    print("Predicted credit risk category =", result["predicted_credit_risk_category"])
+    print("Predicted distress risk category =", result["predicted_distress_risk_category"])
     print("Class probabilities =", result["class_probabilities"])
 
 print("-" * 60)
 
 
 
-# 3. CLUSTERING -- assign a new mall customer to an existing segment
+# 3. CLUSTERING -- assign an e-commerce customer to an existing segment
 
 clustering_payload = {
-    "Age": 27,
-    "Annual Income (k$)": 45,
-    "Spending Score (1-100)": 72,
+    "recency_days": 12,
+    "frequency_per_year": 14,
+    "avg_order_value_kes": 6200,
+    "num_categories_purchased": 5,
 }
 
-result = call_endpoint("/api/v1/models/mall-customer-segmenter/predictions", clustering_payload)
+result = call_endpoint("/api/v1/models/ecommerce-customer-segmenter/predictions", clustering_payload)
 if result is not None:
-    print("Assigned cluster =", result["assigned_cluster"])
+    print("Assigned cluster =", result["assigned_cluster"],
+          "(of", result["number_of_clusters"], "clusters)")
 
 print("-" * 60)
 
 
 
-# 4. ASSOCIATION RULE MINING -- recommend products for a shopping cart
+# 4. ASSOCIATION RULE MINING -- recommend shows from a viewing session
 
 recommendation_payload = {
-    "cart": ["P04", "P01"],
+    "watched": ["Space Frontier", "Time Anomaly"],
     "top_n": 3,
 }
 
-result = call_endpoint("/api/v1/models/ecommerce-recommender/predictions", recommendation_payload)
+result = call_endpoint("/api/v1/models/streaming-show-recommender/predictions", recommendation_payload)
 if result is not None:
-    print("Cart =", result["cart"])
+    print("Watched =", result["watched"])
     print("Recommendations =", result["recommendations"])
