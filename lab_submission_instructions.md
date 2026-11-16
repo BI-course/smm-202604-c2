@@ -22,11 +22,11 @@
 
 **Member 3:**
 
-| **Details**                                                                                                                           | **Comment** |
-|:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Details**                                                                                                                           | **Comment**  |
+|:--------------------------------------------------------------------------------------------------------------------------------------|:-------------|
+| **Student ID**                                                                                                                        | 169389       |
+| **Name**                                                                                                                              | Juliet Mumbi |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |  I worked on the K-Means clustering part of the lab. I prepared the e-commerce customer data by handling missing values and scaling the selected features before training a K-Means model to group customers into three clusters. I also saved the trained model and integrated it into the Flask API so that users could submit customer details and receive a cluster prediction. I tested the endpoint using cURL. Through this work, I learned how to build a clustering model, save and reuse model artifacts, integrate machine learning models into an API, and collaborate using Git branches and pull requests.            |
 
 **Member 4:**
 
