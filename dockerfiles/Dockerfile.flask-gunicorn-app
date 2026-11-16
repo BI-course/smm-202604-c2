@@ -13,8 +13,8 @@ WORKDIR /build
 
 # Install build tools only here
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential gcc \ # main rules..
+    && rm -rf /var/lib/apt/lists/*  # remove any extra downloaded features
 
 # Copy and install Python dependencies
 COPY requirements/ ./requirements/
