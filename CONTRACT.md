@@ -11,8 +11,8 @@ Repo: `https://github.com/BI-course/smm-202604-c2` · Lead: Member 1 · Tier: **
 
 | Member | Model / task                                | Branch                            | GitHub username |
 | :----- | :------------------------------------------ | :-------------------------------- |:----------------|
-| 1      | Retail daily-sales regression               | `feature/regression-retail`       | _(lead)_        |
-| 2      | Corporate financial distress classification | `feature/classification-distress` | _TBC_           |
+| 1      | Retail daily-sales regression               | `feature/regression-retail`       | _(lead — Benvictor Mwangi)_ |
+| 2      | Corporate financial distress classification | `member2-classification-endpoint` | _TBC_           |
 | 3      | E-commerce customer clustering              | `feature/clustering-ecommerce`    | _TBC_           |
 | 4      | Streaming show recommender (Apriori)        | `feature/apriori-streaming`       | whitneykrm      |
 | 5      | Docker + Gunicorn + Nginx                   | `feature/docker-gunicorn-nginx`   | _TBC_           |
@@ -112,15 +112,18 @@ made — it is how the notebooks were written. Fix it when you re-save:
 
 **Member 2 — the label encoder lives outside the pipeline.**
 `Classification.ipynb` fits `LabelEncoder()` separately and saves only the pipeline, so the file predicts
-`0 / 1 / 2` instead of `Healthy / Watch / Distressed`. Save **both** objects:
+`0 / 1 / 2` instead of `Healthy / Watch / Distressed`. Save the pipeline and the encoder as **separate files**
+(this is what Members 2-4 built their branches on, so keep these names):
 
 ```python
 import joblib
-joblib.dump(
-    {"pipeline": final_pipeline, "target_encoder": target_encoder},
-    "distress_classifier_for_group_c2.joblib",
-)
+joblib.dump(final_pipeline, "distress_risk_pipeline.joblib")
+joblib.dump(target_encoder, "distress_label_encoder.joblib")
+joblib.dump({"numeric_features": ..., "categorical_features": ..., "categories": ...},
+            "distress_model_metadata.joblib")
 ```
+
+Table B lists all three files. `save_member2_artifact.py` in the repo root reproduces this.
 
 **Member 3 — the clusterer needs four objects, in order.**
 Save all four, exactly as the notebook builds them:
@@ -165,7 +168,7 @@ Each member fills their own row. **A missing row or branch link is −5 marks fo
 
 | Member | Student ID | Name           | Contribution                                                       | Branch link                                                                | What I learned                                                                                                                                                                                                                                                                               |
 | :----- |:-----------|:---------------|:-------------------------------------------------------------------|:---------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1      |            |                | Retail regression model + API integration (merged all four routes) | `https://github.com/BI-course/smm-202604-c2/tree/feature/regression-retail` |                                                                                                                                                                                                                                                                                              |
+| 1      | 155499     | Benvictor Mwangi | Retail daily-sales regression model (`ridge_regressor_for_retail_sales.joblib`), its endpoint in `api.py`, the dev consumer script, and lead work: reviewed and merged Members 2-4's PRs, completed Table B, and verified all four endpoints on the merged `main` | `https://github.com/BI-course/smm-202604-c2/tree/feature/regression-retail` | `The model is only half the deliverable - the API is what people actually use. I learned that a fitted sklearn Pipeline can be shipped as one file and still do all its own imputing, encoding and scaling at prediction time, which is why the regression route needs no manual preprocessing. I also hit real edge cases: a JSON null silently turned a column into dtype object so the imputer skipped it, and whole numbers arrived as int64, both fixed by coercing to float64 before predict(). On the integration side I learned how branch protection and PRs keep four people from overwriting each other's routes in one file.` |
 | 2      |            |                | Corporate distress classifier + route                              | `https://github.com/BI-course/smm-202604-c2/tree/member2-classification-endpoint` |                                                                                                                                                                                                                                                                                              |
 | 3      |            |                | E-commerce clustering + route                                      | `https://github.com/BI-course/smm-202604-c2/tree/feature/clustering-ecommerce` |                                                                                                                                                                                                                                                                                              |
 | 4      | 154683     | Whitney Karimi | Apriori recommender + route. Loaded the saved association rules (apriori_recommendation_rules.joblib) into api.py and built the /api/v1/models/streaming-show-recommender/predictions endpoint                                      | `https://github.com/BI-course/smm-202604-c2/tree/feature/apriori-streaming`| `Mining the association rules is only half the work: the API is what makes them usable. I learned to load saved rules from disk instead of re-mining them on every request, how to match a viewer’s shows against rule antecedents and why ranking by confidence and lift matters.`           |
