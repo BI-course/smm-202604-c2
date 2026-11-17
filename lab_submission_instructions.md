@@ -44,6 +44,25 @@
 | **Name**                                                                                                                              |             |
 | **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
 
+**Member 6:**
+
+| **Details**                                                                                                                           | **Comment** |
+|:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
+| **Student ID**                                                                                                                        |             |
+| **Name**                                                                                                                              |             |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+
+> **Member 6 — fill this in yourself before we submit.** Suggested starting point (rewrite it in
+> your own words, and make sure the "what I learned" part is actually yours — it is your mark):
+> *"I deployed the group's unmodified `api.py` to Render as a Web Service built from `main`, started
+> with Gunicorn on `$PORT` and with the scikit-learn version pinned via `requirements/constraints.txt`
+> so the saved artifacts load with the version they were trained with. I verified all four endpoints
+> against the public URL and coordinated the demo video. Branch:
+> https://github.com/BI-course/smm-202604-c2/tree/feature/render-deploy — What I learned: …"*
+> Delete this note once your row is filled in.
+
+---
+
 ## Chosen Level of Difficulty
 
 **Specify the chosen level of difficulty** (baseline, intermediate, or advanced): **Advanced** (all four models served from saved artifacts, plus Docker/Gunicorn/Nginx, Render, HTML pages, Hugging Face Space and Streamlit Community Cloud)
