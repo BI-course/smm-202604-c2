@@ -22,11 +22,11 @@
 
 **Member 3:**
 
-| **Details**                                                                                                                           | **Comment** |
-|:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Details**                                                                                                                           | **Comment**  |
+|:--------------------------------------------------------------------------------------------------------------------------------------|:-------------|
+| **Student ID**                                                                                                                        | 169389       |
+| **Name**                                                                                                                              | Juliet Mumbi |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |  I worked on the K-Means clustering part of the lab. I prepared the e-commerce customer data by handling missing values and scaling the selected features before training a K-Means model to group customers into three clusters. I also saved the trained model and integrated it into the Flask API so that users could submit customer details and receive a cluster prediction. I tested the endpoint using cURL. Through this work, I learned how to build a clustering model, save and reuse model artifacts, integrate machine learning models into an API, and collaborate using Git branches and pull requests.            |
 
 **Member 4:**
 
@@ -43,6 +43,25 @@
 | **Student ID**                                                                                                                        |             |
 | **Name**                                                                                                                              |             |
 | **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+
+**Member 6:**
+
+| **Details**                                                                                                                           | **Comment** |
+|:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
+| **Student ID**                                                                                                                        |             |
+| **Name**                                                                                                                              |             |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+
+> **Member 6 — fill this in yourself before we submit.** Suggested starting point (rewrite it in
+> your own words, and make sure the "what I learned" part is actually yours — it is your mark):
+> *"I deployed the group's unmodified `api.py` to Render as a Web Service built from `main`, started
+> with Gunicorn on `$PORT` and with the scikit-learn version pinned via `requirements/constraints.txt`
+> so the saved artifacts load with the version they were trained with. I verified all four endpoints
+> against the public URL and coordinated the demo video. Branch:
+> https://github.com/BI-course/smm-202604-c2/tree/feature/render-deploy — What I learned: …"*
+> Delete this note once your row is filled in.
+
+---
 
 ## Chosen Level of Difficulty
 
