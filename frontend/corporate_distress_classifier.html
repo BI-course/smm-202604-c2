@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Corporate Distress Classifier</title>
+    <style>
+      :root {
+        --accent: #0891b2;
+        --accent-dark: #0e7490;
+        --bg: #f3f4f6;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --ok-bg: #ecfeff;
+        --err-bg: #fef2f2;
+        --err-text: #b91c1c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+        padding: 32px 16px 64px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 16px;
+        box-shadow:
+          0 1px 3px rgba(0, 0, 0, 0.06),
+          0 8px 24px rgba(0, 0, 0, 0.06);
+        max-width: 620px;
+        width: 100%;
+        padding: 32px 32px 28px;
+      }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 16px;
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 14px;
+      }
+      .back-link:hover {
+        color: var(--accent);
+      }
+      .badge {
+        display: inline-block;
+        background: var(--ok-bg);
+        color: var(--accent-dark);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 999px;
+        margin-bottom: 10px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      p.lead {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 24px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin: 16px 0 6px;
+      }
+      label .hint {
+        font-weight: 400;
+        color: var(--muted);
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        background: #fff;
+        color: var(--text);
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      button {
+        width: 100%;
+        margin-top: 24px;
+        padding: 12px 16px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+      button:hover {
+        background: var(--accent-dark);
+      }
+      button:disabled {
+        background: #7dd3e8;
+        cursor: default;
+      }
+      #result {
+        margin-top: 20px;
+        padding: 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        display: none;
+      }
+      #result.show {
+        display: block;
+      }
+      #result.ok {
+        background: var(--ok-bg);
+        color: var(--accent-dark);
+      }
+      #result.err {
+        background: var(--err-bg);
+        color: var(--err-text);
+      }
+      #result .figure {
+        font-size: 22px;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+      .prob-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 13px;
+      }
+      .prob-bar .track {
+        flex: 1;
+        height: 6px;
+        background: #d1f5fb;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .prob-bar .fill {
+        height: 100%;
+        background: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <a class="back-link" href="index.html">&larr; All endpoints</a>
+      <span class="badge">Classification</span>
+      <h1>Corporate Financial Distress Classifier</h1>
+      <p class="lead"
+        >Calls
+        <code
+          >POST /api/v1/models/corporate-distress-classifier/predictions</code
+        ></p
+      >
+
+      <form id="predictForm">
+        <div class="row">
+          <div>
+            <label for="industry_sector">Industry Sector</label>
+            <select id="industry_sector" required>
+              <option>Construction</option>
+              <option selected>Retail</option>
+              <option>Energy</option>
+              <option>Manufacturing</option>
+              <option>Technology</option>
+            </select>
+          </div>
+          <div>
+            <label for="listing_status">Listing Status</label>
+            <select id="listing_status" required>
+              <option selected>Private</option>
+              <option>Public</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="credit_rating_band">Credit Rating Band</label>
+            <select id="credit_rating_band" required>
+              <option>Investment Grade</option>
+              <option>Speculative</option>
+              <option selected>High Risk</option>
+            </select>
+          </div>
+          <div>
+            <label for="audit_going_concern_flag"
+              >Audit Going Concern Flag
+              <span class="hint">(blank = not applicable)</span></label
+            >
+            <select id="audit_going_concern_flag">
+              <option value="" selected>-- not applicable --</option>
+              <option>Not Flagged</option>
+              <option>No</option>
+              <option>Yes</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="years_in_operation">Years in Operation</label>
+            <input
+              type="number"
+              id="years_in_operation"
+              step="0.1"
+              min="0"
+              value="3"
+              required
+            />
+          </div>
+          <div>
+            <label for="num_employees">Number of Employees</label>
+            <input type="number" id="num_employees" value="12" required />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="debt_to_equity_ratio">Debt-to-Equity Ratio</label>
+            <input
+              type="number"
+              id="debt_to_equity_ratio"
+              step="0.01"
+              value="4.8"
+              required
+            />
+          </div>
+          <div>
+            <label for="current_ratio">Current Ratio</label>
+            <input
+              type="number"
+              id="current_ratio"
+              step="0.01"
+              value="0.6"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="interest_coverage_ratio">Interest Coverage Ratio</label>
+            <input
+              type="number"
+              id="interest_coverage_ratio"
+              step="0.01"
+              value="0.9"
+              required
+            />
+          </div>
+          <div>
+            <label for="revenue_growth_pct">Revenue Growth (%)</label>
+            <input
+              type="number"
+              id="revenue_growth_pct"
+              step="0.1"
+              value="-18.0"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="net_profit_margin_pct"
+              >Net Profit Margin (%)
+              <span class="hint">(blank = unknown)</span></label
+            >
+            <input
+              type="number"
+              id="net_profit_margin_pct"
+              step="0.1"
+              value="-5.2"
+            />
+          </div>
+          <div>
+            <label for="working_capital_to_assets_ratio"
+              >Working Capital / Assets</label
+            >
+            <input
+              type="number"
+              id="working_capital_to_assets_ratio"
+              step="0.01"
+              value="-0.15"
+              required
+            />
+          </div>
+        </div>
+
+        <label for="macroeconomic_interest_rate_pct"
+          >Macroeconomic Interest Rate (%)</label
+        >
+        <input
+          type="number"
+          id="macroeconomic_interest_rate_pct"
+          step="0.1"
+          value="12.5"
+          required
+        />
+
+        <button type="submit" id="submitBtn">Predict Distress Risk</button>
+      </form>
+
+      <div id="result"></div>
+    </div>
+
+    <script>
+      const protocol = window.location.protocol; // "http:", "https:", or "file:"
+      const hostname = window.location.hostname || "127.0.0.1"; // hostname is "" for a file:// page
+      const isSecure = protocol === "https:";
+
+      const API_ORIGIN = `${isSecure ? "https" : "http"}://${hostname}:${isSecure ? "443" : "5000"}`;
+      const API_URL = `${API_ORIGIN}/api/v1/models/corporate-distress-classifier/predictions`;
+
+      // const API_URL = "http://127.0.0.1:5000/api/v1/models/corporate-distress-classifier/predictions";
+
+      document
+        .getElementById("predictForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const submitBtn = document.getElementById("submitBtn");
+          const result = document.getElementById("result");
+
+          // A blank going-concern flag means "Private company, not subject to the
+          // disclosure" -- send null so the API applies the same fill the notebook
+          // used in training ("Not Flagged"). A blank net margin is genuinely
+          // unknown, and the pipeline's median imputer handles it.
+          const goingConcern = document.getElementById(
+            "audit_going_concern_flag",
+          ).value;
+          const netMargin = document.getElementById(
+            "net_profit_margin_pct",
+          ).value;
+
+          const payload = {
+            industry_sector: document.getElementById("industry_sector").value,
+            listing_status: document.getElementById("listing_status").value,
+            credit_rating_band:
+              document.getElementById("credit_rating_band").value,
+            audit_going_concern_flag: goingConcern === "" ? null : goingConcern,
+            years_in_operation: parseFloat(
+              document.getElementById("years_in_operation").value,
+            ),
+            num_employees: parseInt(
+              document.getElementById("num_employees").value,
+            ),
+            debt_to_equity_ratio: parseFloat(
+              document.getElementById("debt_to_equity_ratio").value,
+            ),
+            current_ratio: parseFloat(
+              document.getElementById("current_ratio").value,
+            ),
+            interest_coverage_ratio: parseFloat(
+              document.getElementById("interest_coverage_ratio").value,
+            ),
+            revenue_growth_pct: parseFloat(
+              document.getElementById("revenue_growth_pct").value,
+            ),
+            net_profit_margin_pct:
+              netMargin === "" ? null : parseFloat(netMargin),
+            working_capital_to_assets_ratio: parseFloat(
+              document.getElementById("working_capital_to_assets_ratio").value,
+            ),
+            macroeconomic_interest_rate_pct: parseFloat(
+              document.getElementById("macroeconomic_interest_rate_pct").value,
+            ),
+          };
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Predicting...";
+          result.className = "";
+
+          try {
+            const response = await fetch(API_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(
+                `Server responded ${response.status}: ${text.slice(0, 200)}`,
+              );
+            }
+            const data = await response.json();
+
+            const probRows = Object.entries(data.class_probabilities)
+              .sort((a, b) => b[1] - a[1])
+              .map(
+                ([label, prob]) => `
+          <div class="prob-bar">
+            <span style="width:80px;">${label}</span>
+            <div class="track"><div class="fill" style="width:${(prob * 100).toFixed(0)}%"></div></div>
+            <span>${(prob * 100).toFixed(1)}%</span>
+          </div>`,
+              )
+              .join("");
+
+            result.className = "show ok";
+            result.innerHTML =
+              `Model: ${data.model}` +
+              `<div class="figure">${data.predicted_distress_risk_category}</div>` +
+              probRows;
+          } catch (err) {
+            result.className = "show err";
+            result.textContent =
+              "Request failed: " +
+              err.message +
+              " (is api.py running on http://127.0.0.1:5000 ?)";
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Predict Distress Risk";
+          }
+        });
+    </script>
+  </body>
+</html>
