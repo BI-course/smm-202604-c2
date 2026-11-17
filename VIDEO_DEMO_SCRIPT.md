@@ -43,6 +43,9 @@ the recording is your insurance. Take A alone already banks **90 of the 100 mark
 2. **`frontend/sme_revenue_regressor.html` is stale** — it still calls
    `/api/v1/models/sme-revenue-regressor/predictions`, a route that no longer exists (it is the old
    Lasso model). Do not open it on camera and do not link it. `index.html` no longer does.
+   Same for `mall_customer_segmenter.html` and `sme_credit_risk_classifier.html` if they are still
+   on disk — `api.py` serves **every** file under `frontend/` at `http://127.0.0.1:5000/<name>.html`,
+   so an old page is still reachable even after it is unlinked.
 3. **Decide the demo machine** (Table C is still `_TBC_`). It must be the machine that has Docker
    running _and_ the `.venv` that returns the numbers in §2. Every number below was verified on
    this machine on 17 Nov.
@@ -70,6 +73,9 @@ Fix it before recording, not after.
 
 ```powershell
 cd c:\Users\Catriona\Downloads\BIII\Module_6_Flask_ML_API
+
+# 0. Build from scratch -- DO NOT trust cached layers (see the warning below)
+docker compose -f docker-compose.yaml -f docker-compose-dev.yaml build --no-cache flask-gunicorn-app
 
 # 1. Every answer correct, right now
 ..\.venv\Scripts\python.exe api.py                                    # terminal 1, leave running
@@ -201,6 +207,15 @@ docker compose -f docker-compose.yaml -f docker-compose-dev.yaml ps
 docker compose -f docker-compose.yaml -f docker-compose-dev.yaml logs flask-gunicorn-app | head -20
 bash tests/smoke_nginx.sh
 ```
+
+> **If any endpoint 404s through Nginx, it is a stale image, not your code.** Verified on 17 Nov:
+> `docker compose build` reported every step `CACHED` and the image shipped the **original reference**
+> `api.py` (0 of the four group routes). After `build --no-cache` the same command gave 6/6. So before
+> recording, either build with `--no-cache`, or prove the image is right with:
+> ```bash
+> docker compose ... exec -T flask-gunicorn-app sh -c "grep -c 'streaming-show-recommender' /opt/app-smm/api.py"
+> # must print 5, not 0
+> ```
 
 1. `ps` → **2** `flask-gunicorn-app` replicas + `nginx`.
 2. `logs` → show `Starting gunicorn` and `Listening at: http://0.0.0.0:8000`, and say: _"Flask's
