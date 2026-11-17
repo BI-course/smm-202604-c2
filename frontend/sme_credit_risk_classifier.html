@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SME Credit Risk Classifier</title>
+<title>Corporate Distress Classifier</title>
 <style>
   :root {
     --accent: #0891b2;
@@ -43,7 +43,8 @@
     padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
   }
   h1 { font-size: 22px; margin: 0 0 4px; }
-  p.lead { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  p.lead { color: var(--muted); font-size: 14px; margin: 0 0 24px; overflow-wrap: anywhere; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 24px 0 0; }
   label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
   label .hint { font-weight: 400; color: var(--muted); }
   input, select {
@@ -54,6 +55,7 @@
     outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(8,145,178,0.15);
   }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 480px) { .row { grid-template-columns: 1fr; gap: 0; } .card { padding: 24px 20px; } }
   button {
     width: 100%; margin-top: 24px; padding: 12px 16px; background: var(--accent);
     color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
@@ -64,9 +66,11 @@
   #result { margin-top: 20px; padding: 16px; border-radius: 10px; font-size: 14px; display: none; }
   #result.show { display: block; }
   #result.ok { background: var(--ok-bg); color: var(--accent-dark); }
-  #result.err { background: var(--err-bg); color: var(--err-text); }
+  #result.err { background: var(--err-bg); color: var(--err-text); white-space: pre-line; }
   #result .figure { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  #result .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
   .prob-bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px; }
+  .prob-bar .name { width: 80px; }
   .prob-bar .track { flex: 1; height: 6px; background: #d1f5fb; border-radius: 3px; overflow: hidden; }
   .prob-bar .fill { height: 100%; background: var(--accent); }
 </style>
@@ -75,134 +79,97 @@
   <div class="card">
     <a class="back-link" href="index.html">&larr; All endpoints</a>
     <span class="badge">Classification</span>
-    <h1>SME Credit Risk Classifier</h1>
-    <p class="lead">Calls <code>POST /api/v1/models/sme-credit-risk-classifier/predictions</code></p>
+    <h1>Corporate Distress Classifier</h1>
+    <p class="lead">Calls <code>POST /api/v1/models/corporate-distress-classifier/predictions</code></p>
 
+    <!-- Defaults are the CONTRACT.md demo row -> expected "Distressed" (P = 0.9783) -->
     <form id="predictForm">
+      <h2>Company profile</h2>
       <div class="row">
         <div>
-          <label for="sector">Sector</label>
-          <select id="sector" required>
-            <option>Retail</option><option>Hospitality</option><option>Agriculture</option>
-            <option>Manufacturing</option><option>Services</option><option>Technology</option>
+          <label for="industry_sector">Industry Sector</label>
+          <select id="industry_sector" required>
+            <option>Construction</option><option>Energy</option><option>Manufacturing</option>
+            <option selected>Retail</option><option>Technology</option>
           </select>
         </div>
         <div>
-          <label for="county">County</label>
-          <select id="county" required>
-            <option>Nairobi</option><option>Mombasa</option><option>Kisumu</option>
-            <option>Nakuru</option><option>Eldoret</option><option>Other</option>
+          <label for="listing_status">Listing Status</label>
+          <select id="listing_status" required>
+            <option selected>Private</option><option>Public</option>
           </select>
         </div>
       </div>
 
       <div class="row">
         <div>
-          <label for="quarter">Quarter</label>
-          <select id="quarter" required>
-            <option>Q1</option><option selected>Q2</option><option>Q3</option><option>Q4</option>
+          <label for="credit_rating_band">Credit Rating Band</label>
+          <select id="credit_rating_band" required>
+            <option>Investment Grade</option><option>Speculative</option><option selected>High Risk</option>
           </select>
         </div>
         <div>
-          <label for="loan_purpose">Loan Purpose</label>
-          <select id="loan_purpose" required>
-            <option>Working Capital</option>
-            <option>Equipment Purchase</option>
-            <option>Inventory Financing</option>
-            <option>Business Expansion</option>
+          <label for="audit_going_concern_flag">Going-Concern Audit Flag</label>
+          <!-- Private companies have no going-concern disclosure (structural
+               missingness), so "Not applicable" sends null and the API fills it
+               with "Not Flagged" -- exactly what training did. -->
+          <select id="audit_going_concern_flag">
+            <option value="" selected>Not applicable (Private)</option>
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
           </select>
         </div>
       </div>
 
       <div class="row">
         <div>
-          <label for="owner_education_level">Owner Education</label>
-          <select id="owner_education_level" required>
-            <option>Primary</option>
-            <option selected>Secondary</option>
-            <option>Certificate</option>
-            <option>Diploma</option>
-            <option>Bachelor's</option>
-            <option>Master's</option>
-            <option>Doctorate</option>
-          </select>
+          <label for="years_in_operation">Years in Operation</label>
+          <input type="number" id="years_in_operation" step="0.1" min="0" value="3" required>
         </div>
-        <div>
-          <label for="business_age_years">Business Age (years)</label>
-          <input type="number" id="business_age_years" step="0.1" value="2.1" required>
-        </div>
-      </div>
-
-      <div class="row">
         <div>
           <label for="num_employees">Number of Employees</label>
-          <input type="number" id="num_employees" value="4" required>
+          <input type="number" id="num_employees" step="1" min="0" value="12" required>
+        </div>
+      </div>
+
+      <h2>Financial ratios</h2>
+      <div class="row">
+        <div>
+          <label for="debt_to_equity_ratio">Debt-to-Equity Ratio</label>
+          <input type="number" id="debt_to_equity_ratio" step="0.01" value="4.8" required>
         </div>
         <div>
-          <label for="monthly_revenue_kes">Monthly Revenue (KES)</label>
-          <input type="number" id="monthly_revenue_kes" value="850000" required>
+          <label for="current_ratio">Current Ratio</label>
+          <input type="number" id="current_ratio" step="0.01" value="0.6" required>
         </div>
       </div>
 
       <div class="row">
         <div>
-          <label for="loan_amount_kes">Loan Amount (KES)</label>
-          <input type="number" id="loan_amount_kes" value="150000" required>
+          <label for="interest_coverage_ratio">Interest Coverage Ratio</label>
+          <input type="number" id="interest_coverage_ratio" step="0.01" value="0.9" required>
         </div>
         <div>
-          <label for="loan_term_months">Loan Term (months)</label>
-          <input type="number" id="loan_term_months" value="12" required>
+          <label for="revenue_growth_pct">Revenue Growth (%)</label>
+          <input type="number" id="revenue_growth_pct" step="0.1" value="-18.0" required>
         </div>
       </div>
 
       <div class="row">
         <div>
-          <label for="interest_rate_pct">Interest Rate (%)</label>
-          <input type="number" id="interest_rate_pct" step="0.1" value="16.5" required>
+          <label for="net_profit_margin_pct">Net Profit Margin (%) <span class="hint">(blank if unknown)</span></label>
+          <input type="number" id="net_profit_margin_pct" step="0.1" value="-5.2" placeholder="e.g. 5.6">
         </div>
         <div>
-          <label for="collateral_value_kes">Collateral Value (KES) <span class="hint">(blank if unsecured)</span></label>
-          <input type="number" id="collateral_value_kes" placeholder="e.g. 500000">
+          <label for="working_capital_to_assets_ratio">Working Capital / Assets</label>
+          <input type="number" id="working_capital_to_assets_ratio" step="0.001" value="-0.15" required>
         </div>
       </div>
 
-      <div class="row">
-        <div>
-          <label for="debt_to_income_ratio">Debt-to-Income Ratio</label>
-          <input type="number" id="debt_to_income_ratio" step="0.01" value="0.62" required>
-        </div>
-        <div>
-          <label for="credit_score">Credit Score</label>
-          <input type="number" id="credit_score" value="590" required>
-        </div>
-      </div>
+      <label for="macroeconomic_interest_rate_pct">Macroeconomic Interest Rate (%)</label>
+      <input type="number" id="macroeconomic_interest_rate_pct" step="0.1" value="12.5" required>
 
-      <div class="row">
-        <div>
-          <label for="num_previous_loans">Previous Loans</label>
-          <input type="number" id="num_previous_loans" value="1" required>
-        </div>
-        <div>
-          <label for="missed_payments_count">Missed Payments</label>
-          <input type="number" id="missed_payments_count" value="3" required>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label for="online_presence_score">Online Presence Score (0-100)</label>
-          <input type="number" id="online_presence_score" value="40" required>
-        </div>
-        <div>
-          <label for="customer_satisfaction_score">Satisfaction (1-5)</label>
-          <input type="number" id="customer_satisfaction_score" step="0.1" min="1" max="5" value="3.4" required>
-        </div>
-      </div>
-
-      <label for="competitor_density">Competitor Density</label>
-      <input type="number" id="competitor_density" value="6" required>
-
-      <button type="submit" id="submitBtn">Predict Credit Risk</button>
+      <button type="submit" id="submitBtn">Predict Distress Risk</button>
     </form>
 
     <div id="result"></div>
@@ -214,41 +181,51 @@
   const isSecure = protocol === "https:";
 
   const API_ORIGIN = `${isSecure ? "https" : "http"}://${hostname}:${isSecure ? "443" : "5000"}`;
-  const API_URL = `${API_ORIGIN}/api/v1/models/sme-credit-risk-classifier/predictions`;
+  const API_URL = `${API_ORIGIN}/api/v1/models/corporate-distress-classifier/predictions`;
 
-  // const API_URL = "http://127.0.0.1:5000/api/v1/models/sme-credit-risk-classifier/predictions";
+  // const API_URL = "http://127.0.0.1:5000/api/v1/models/corporate-distress-classifier/predictions";
+
+  const NUMBER_FIELDS = [
+    "years_in_operation", "num_employees", "debt_to_equity_ratio", "current_ratio",
+    "interest_coverage_ratio", "revenue_growth_pct", "net_profit_margin_pct",
+    "working_capital_to_assets_ratio", "macroeconomic_interest_rate_pct",
+  ];
+  // The only numeric field the model accepts as null (median-imputed in the pipeline)
+  const NULLABLE_NUMBER_FIELDS = ["net_profit_margin_pct"];
+
+  function value(id) { return document.getElementById(id).value.trim(); }
 
   document.getElementById("predictForm").addEventListener("submit", async function (e) {
     e.preventDefault();
     const submitBtn = document.getElementById("submitBtn");
     const result = document.getElementById("result");
 
-    // A blank collateral field means "unsecured loan" -- send null, not an
-    // empty string, exactly what the pipeline's imputer + missingness
-    // indicator already expects.
-    const collateral = document.getElementById("collateral_value_kes").value;
-
     const payload = {
-      sector: document.getElementById("sector").value,
-      county: document.getElementById("county").value,
-      quarter: document.getElementById("quarter").value,
-      loan_purpose: document.getElementById("loan_purpose").value,
-      owner_education_level: document.getElementById("owner_education_level").value,
-      business_age_years: parseFloat(document.getElementById("business_age_years").value),
-      num_employees: parseInt(document.getElementById("num_employees").value),
-      monthly_revenue_kes: parseFloat(document.getElementById("monthly_revenue_kes").value),
-      loan_amount_kes: parseFloat(document.getElementById("loan_amount_kes").value),
-      loan_term_months: parseInt(document.getElementById("loan_term_months").value),
-      interest_rate_pct: parseFloat(document.getElementById("interest_rate_pct").value),
-      collateral_value_kes: collateral === "" ? null : parseFloat(collateral),
-      debt_to_income_ratio: parseFloat(document.getElementById("debt_to_income_ratio").value),
-      credit_score: parseFloat(document.getElementById("credit_score").value),
-      num_previous_loans: parseInt(document.getElementById("num_previous_loans").value),
-      missed_payments_count: parseInt(document.getElementById("missed_payments_count").value),
-      online_presence_score: parseFloat(document.getElementById("online_presence_score").value),
-      customer_satisfaction_score: parseFloat(document.getElementById("customer_satisfaction_score").value),
-      competitor_density: parseInt(document.getElementById("competitor_density").value),
+      industry_sector: value("industry_sector"),
+      listing_status: value("listing_status"),
+      credit_rating_band: value("credit_rating_band"),
+      // "Not applicable" -> null, which the API fills with "Not Flagged"
+      audit_going_concern_flag: value("audit_going_concern_flag") === "" ? null : value("audit_going_concern_flag"),
     };
+
+    // Reject blank or non-numeric input before calling the API.
+    const blanks = [];
+    for (const field of NUMBER_FIELDS) {
+      const raw = value(field);
+      if (raw === "") {
+        if (NULLABLE_NUMBER_FIELDS.includes(field)) { payload[field] = null; continue; }
+        blanks.push(document.querySelector(`label[for="${field}"]`).firstChild.textContent.trim());
+        continue;
+      }
+      const number = Number(raw);
+      if (!Number.isFinite(number)) { blanks.push(field); continue; }
+      payload[field] = number;
+    }
+    if (blanks.length) {
+      result.className = "show err";
+      result.textContent = "Please fill in: " + blanks.join(", ");
+      return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.textContent = "Predicting...";
@@ -260,17 +237,24 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Server responded ${response.status}: ${text.slice(0, 200)}`);
+        let message = `Server responded ${response.status}`;
+        if (data && data.error) message += `: ${data.error}`;
+        if (data && data.missing_fields) message += `\nMissing: ${data.missing_fields.join(", ")}`;
+        if (data && data.details) {
+          for (const [field, info] of Object.entries(data.details)) {
+            message += `\n${field}: got "${info.received}", allowed ${info.allowed.join(", ")}`;
+          }
+        }
+        throw new Error(message);
       }
-      const data = await response.json();
 
       const probRows = Object.entries(data.class_probabilities)
         .sort((a, b) => b[1] - a[1])
         .map(([label, prob]) => `
           <div class="prob-bar">
-            <span style="width:64px;">${label}</span>
+            <span class="name">${label}</span>
             <div class="track"><div class="fill" style="width:${(prob * 100).toFixed(0)}%"></div></div>
             <span>${(prob * 100).toFixed(1)}%</span>
           </div>`).join("");
@@ -278,15 +262,16 @@
       result.className = "show ok";
       result.innerHTML =
         `Model: ${data.model}` +
-        `<div class="figure">${data.predicted_credit_risk_category} risk</div>` +
-        probRows;
+        `<div class="figure">${data.predicted_distress_risk_category}</div>` +
+        probRows +
+        `<div class="note">Probabilities are for ranking only: SMOTE makes them overstate real Distressed risk.</div>`;
     } catch (err) {
       result.className = "show err";
       result.textContent = "Request failed: " + err.message +
-        " (is api.py running on http://127.0.0.1:5000 ?)";
+        (err instanceof TypeError ? " (is api.py running on http://127.0.0.1:5000 ?)" : "");
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = "Predict Credit Risk";
+      submitBtn.textContent = "Predict Distress Risk";
     }
   });
 </script>
