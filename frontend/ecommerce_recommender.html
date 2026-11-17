@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>E-Commerce Recommender</title>
+<title>Streaming Show Recommender</title>
 <style>
   :root {
     --accent: #ea580c;
@@ -31,7 +31,7 @@
     background: var(--card);
     border-radius: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
-    max-width: 520px;
+    max-width: 560px;
     width: 100%;
     padding: 32px 32px 28px;
   }
@@ -44,15 +44,34 @@
   }
   h1 { font-size: 22px; margin: 0 0 4px; }
   p.lead { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
-  label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
-  label .hint { font-weight: 400; color: var(--muted); }
-  input {
+  p.lead code { font-size: 12px; }
+  label, .group-label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
+  .hint { font-weight: 400; color: var(--muted); }
+  input[type="number"] {
     width: 100%; padding: 10px 12px; border: 1px solid var(--border);
     border-radius: 10px; font-size: 14px; background: #fff; color: var(--text);
   }
-  input:focus {
+  input[type="number"]:focus {
     outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(234,88,12,0.15);
   }
+
+  /* Show picker: one clickable chip per show, grouped by category */
+  .category { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+              color: var(--muted); margin: 12px 0 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { position: relative; }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip span {
+    display: inline-block; padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px;
+    font-size: 13px; cursor: pointer; user-select: none; transition: all 0.12s ease; background: #fff;
+  }
+  .chip span:hover { border-color: var(--accent); }
+  .chip input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip input:focus-visible + span { box-shadow: 0 0 0 3px rgba(234,88,12,0.25); }
+
+  .examples { margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .examples a { color: var(--accent-dark); cursor: pointer; text-decoration: underline; margin-right: 10px; }
+
   button {
     width: 100%; margin-top: 24px; padding: 12px 16px; background: var(--accent);
     color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
@@ -65,11 +84,10 @@
   #result.ok { background: var(--ok-bg); color: var(--accent-dark); }
   #result.err { background: var(--err-bg); color: var(--err-text); }
   ul.recs { list-style: none; margin: 10px 0 0; padding: 0; }
-  ul.recs li {
-    padding: 8px 0; border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; font-size: 14px;
-  }
+  ul.recs li { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
   ul.recs li:last-child { border-bottom: none; }
+  ul.recs .row { display: flex; justify-content: space-between; gap: 12px; }
+  ul.recs .show-name { font-weight: 600; color: var(--text); }
   ul.recs .meta { color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -78,14 +96,21 @@
     <a class="back-link" href="index.html">&larr; All endpoints</a>
     <span class="badge">Association Rules</span>
     <h1>Streaming Show Recommender</h1>
-    <p class="lead">Calls <code>POST /api/v1/models/streaming-show-recommender/predictions</code></p>
+    <p class="lead">Pick the shows a viewer has already watched, and the saved Apriori rules suggest what to watch next.<br>
+      Calls <code>POST /api/v1/models/streaming-show-recommender/predictions</code></p>
 
-    <form id="predictForm">
-      <label for="cart">Shows already watched <span class="hint">(comma-separated names or IDs, e.g. Space Frontier, Time Anomaly or S06, S08)</span></label>
-      <input type="text" id="cart" value="Space Frontier, Time Anomaly" required>
+    <form id="predictForm" novalidate>
+      <span class="group-label">Shows already watched <span class="hint">(pick one or more)</span></span>
+      <div id="showPicker"></div>
 
-      <label for="top_n">Number of Recommendations</label>
-      <input type="number" id="top_n" value="3" min="1" max="10" required>
+      <div class="examples">Try:
+        <a data-example="Space Frontier|Time Anomaly">Space Frontier + Time Anomaly</a>
+        <a data-example="Love Island Nairobi">Love Island Nairobi</a>
+        <a data-example="Crime City">Crime City (no match)</a>
+      </div>
+
+      <label for="top_n">Number of recommendations</label>
+      <input type="number" id="top_n" value="3" min="1" max="10">
 
       <button type="submit" id="submitBtn">Get Recommendations</button>
     </form>
@@ -100,23 +125,92 @@
 
   const API_ORIGIN = `${isSecure ? "https" : "http"}://${hostname}:${isSecure ? "443" : "5000"}`;
   const API_URL = `${API_ORIGIN}/api/v1/models/streaming-show-recommender/predictions`;
+  const SHOWS_URL = `${API_ORIGIN}/api/v1/models/streaming-show-recommender/shows`;
 
-  // const API_URL = "http://127.0.0.1:5000/api/v1/models/streaming-show-recommender/predictions";
+  // Fallback catalogue (from the ARM lab's item lookup), used only if the /shows call fails.
+  const FALLBACK_SHOWS = [
+    { item_name: "Crime City", category: "Crime Drama" },
+    { item_name: "The Detective", category: "Crime Drama" },
+    { item_name: "Silent Witness Redux", category: "Crime Drama" },
+    { item_name: "Laugh Track", category: "Sitcom" },
+    { item_name: "Office Antics", category: "Sitcom" },
+    { item_name: "Space Frontier", category: "Sci-Fi" },
+    { item_name: "Galactic Wars", category: "Sci-Fi" },
+    { item_name: "Time Anomaly", category: "Sci-Fi" },
+    { item_name: "Toon Town", category: "Kids" },
+    { item_name: "Little Explorers", category: "Kids" },
+    { item_name: "Real Life Diaries", category: "Reality TV" },
+    { item_name: "Love Island Nairobi", category: "Reality TV" },
+    { item_name: "Parenting Unscripted", category: "Reality TV" },
+    { item_name: "Cooking Masters", category: "Reality TV" },
+    { item_name: "True Crime Files", category: "Documentary" },
+  ];
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = String(text);
+    return div.innerHTML;
+  }
+
+  function renderPicker(shows) {
+    const byCategory = {};
+    shows.forEach(s => (byCategory[s.category] = byCategory[s.category] || []).push(s.item_name));
+    const picker = document.getElementById("showPicker");
+    picker.innerHTML = Object.keys(byCategory).map(cat => `
+      <div class="category">${escapeHtml(cat)}</div>
+      <div class="chips">
+        ${byCategory[cat].map(name => `
+          <label class="chip"><input type="checkbox" name="watched" value="${escapeHtml(name)}"><span>${escapeHtml(name)}</span></label>
+        `).join("")}
+      </div>`).join("");
+  }
+
+  async function loadShows() {
+    try {
+      const response = await fetch(SHOWS_URL);
+      if (!response.ok) throw new Error(response.status);
+      const data = await response.json();
+      renderPicker(data.shows);
+    } catch (err) {
+      renderPicker(FALLBACK_SHOWS);
+    }
+  }
+
+  function selectedShows() {
+    return [...document.querySelectorAll('input[name="watched"]:checked')].map(cb => cb.value);
+  }
+
+  function showError(message) {
+    const result = document.getElementById("result");
+    result.className = "show err";
+    result.textContent = message;
+  }
+
+  // "Try:" links tick the example shows and submit straight away
+  document.querySelectorAll("[data-example]").forEach(link => {
+    link.addEventListener("click", () => {
+      const wanted = link.dataset.example.split("|");
+      document.querySelectorAll('input[name="watched"]').forEach(cb => { cb.checked = wanted.includes(cb.value); });
+      document.getElementById("predictForm").requestSubmit();
+    });
+  });
 
   document.getElementById("predictForm").addEventListener("submit", async function (e) {
     e.preventDefault();
     const submitBtn = document.getElementById("submitBtn");
     const result = document.getElementById("result");
 
-    const watched = document.getElementById("cart").value
-      .split(",")
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
-    const payload = {
-      watched: watched,
-      top_n: parseInt(document.getElementById("top_n").value),
-    };
+    // Basic error handling for missing / invalid input, before calling the API
+    const watched = selectedShows();
+    if (watched.length === 0) {
+      showError("Please pick at least one show the viewer has already watched.");
+      return;
+    }
+    const topN = parseInt(document.getElementById("top_n").value, 10);
+    if (!Number.isInteger(topN) || topN < 1) {
+      showError("Number of recommendations must be a whole number of 1 or more.");
+      return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.textContent = "Fetching...";
@@ -126,35 +220,39 @@
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ watched: watched, top_n: topN }),
       });
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Server responded ${response.status}: ${text.slice(0, 200)}`);
+        throw new Error(data.error || `Server responded ${response.status}`);
       }
-      const data = await response.json();
 
       if (data.recommendations.length === 0) {
         result.className = "show ok";
-        result.innerHTML = `Model: ${data.model}<br><br>${data.message || "No rules matched these shows -- try a different combination."}`;
+        result.innerHTML = `<strong>No recommendation available.</strong><br>${escapeHtml(data.message)}
+          <br><br><span class="meta">Watched: ${data.watched.map(escapeHtml).join(", ")}</span>`;
       } else {
         const items = data.recommendations.map(r => `
           <li>
-            <span>${r.show_name} <span class="meta">(${r.show_id} &middot; ${r.category})</span></span>
-            <span class="meta">conf ${r.confidence} &middot; lift ${r.lift}</span>
+            <div class="row">
+              <span class="show-name">${escapeHtml(r.show_name)} <span class="meta">(${escapeHtml(r.category)})</span></span>
+              <span class="meta">conf ${r.confidence} &middot; lift ${r.lift}</span>
+            </div>
+            <div class="meta">Because you watched ${r.because_you_watched.map(escapeHtml).join(" + ")}</div>
           </li>`).join("");
         result.className = "show ok";
-        result.innerHTML = `Model: ${data.model}<ul class="recs">${items}</ul>`;
+        result.innerHTML = `<strong>${escapeHtml(data.message)}</strong><ul class="recs">${items}</ul>
+          <span class="meta">Model: ${escapeHtml(data.model)}</span>`;
       }
     } catch (err) {
-      result.className = "show err";
-      result.textContent = "Request failed: " + err.message +
-        " (is api.py running on http://127.0.0.1:5000 ?)";
+      showError("Request failed: " + err.message + " (is api.py running on http://127.0.0.1:5000 ?)");
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "Get Recommendations";
     }
   });
+
+  loadShows();
 </script>
 </body>
 </html>
