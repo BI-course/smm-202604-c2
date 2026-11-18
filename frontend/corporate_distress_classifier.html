@@ -335,7 +335,7 @@
       const hostname = window.location.hostname || "127.0.0.1"; // hostname is "" for a file:// page
       const isSecure = protocol === "https:";
 
-      const API_ORIGIN = `${isSecure ? "https" : "http"}://${hostname}:${isSecure ? "443" : "5000"}`;
+      const API_ORIGIN = `${window.location.origin}`;
       const API_URL = `${API_ORIGIN}/api/v1/models/corporate-distress-classifier/predictions`;
 
       // const API_URL = "http://127.0.0.1:5000/api/v1/models/corporate-distress-classifier/predictions";
