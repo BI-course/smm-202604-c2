@@ -2,15 +2,15 @@
 
 ## Student Details and Individual Member Contributions
 
-**Name of the team on GitHub Classroom:**
+**Name of the team on GitHub Classroom:** smm-202604-c2 (Group C2) — repo: https://github.com/BI-course/smm-202604-c2
 
 **Member 1:**
 
 | **Details**                                                                                                                           | **Comment** |
 |:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Student ID**                                                                                                                        | 155499      |
+| **Name**                                                                                                                              | Benvictor Mwangi |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** | I built the retail daily-sales **regression** model and its endpoint — `save_member1_artifact.py` rebuilds and fits the Ridge pipeline (structural-missingness handling for `online_order_count`, `log1p` target) and saves it as `model/ridge_regressor_for_retail_sales.joblib`; the `POST /api/v1/models/store-daily-sales-regressor/predictions` route in `api.py` serves it and returns 208,681.74 KES for the demo row. As group lead I reviewed and merged the PRs for the classification, clustering and recommender routes, completed Table B, updated `frontend/api_consumer_from_dev_flask.py` to call all four new endpoints, and re-ran the full test suite on the merged `main`. Branch: https://github.com/BI-course/smm-202604-c2/tree/feature/regression-retail — What I learned: the pipeline is the deployment artifact; a JSON `null` silently makes a column dtype `object` so the imputer skips it (fixed by coercing to `float64` before `predict`), and branch protection + PRs were what let four people add routes to one `api.py` without overwriting each other. |
 
 **Member 2:**
 
@@ -22,11 +22,11 @@
 
 **Member 3:**
 
-| **Details**                                                                                                                           | **Comment** |
-|:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Details**                                                                                                                           | **Comment**  |
+|:--------------------------------------------------------------------------------------------------------------------------------------|:-------------|
+| **Student ID**                                                                                                                        | 169389       |
+| **Name**                                                                                                                              | Juliet Mumbi |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |  I worked on the K-Means clustering part of the lab. I prepared the e-commerce customer data by handling missing values and scaling the selected features before training a K-Means model to group customers into three clusters. I also saved the trained model and integrated it into the Flask API so that users could submit customer details and receive a cluster prediction. I tested the endpoint using cURL. Through this work, I learned how to build a clustering model, save and reuse model artifacts, integrate machine learning models into an API, and collaborate using Git branches and pull requests.            |
 
 **Member 4:**
 
@@ -44,9 +44,28 @@
 | **Name**                                                                                                                              |             |
 | **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
 
+**Member 6:**
+
+| **Details**                                                                                                                           | **Comment** |
+|:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
+| **Student ID**                                                                                                                        |             |
+| **Name**                                                                                                                              |             |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+
+> **Member 6 — fill this in yourself before we submit.** Suggested starting point (rewrite it in
+> your own words, and make sure the "what I learned" part is actually yours — it is your mark):
+> *"I deployed the group's unmodified `api.py` to Render as a Web Service built from `main`, started
+> with Gunicorn on `$PORT` and with the scikit-learn version pinned via `requirements/constraints.txt`
+> so the saved artifacts load with the version they were trained with. I verified all four endpoints
+> against the public URL and coordinated the demo video. Branch:
+> https://github.com/BI-course/smm-202604-c2/tree/feature/render-deploy — What I learned: …"*
+> Delete this note once your row is filled in.
+
+---
+
 ## Chosen Level of Difficulty
 
-**Specify the chosen level of difficulty** (baseline, intermediate, or advanced):
+**Specify the chosen level of difficulty** (baseline, intermediate, or advanced): **Advanced** (all four models served from saved artifacts, plus Docker/Gunicorn/Nginx, Render, HTML pages, Hugging Face Space and Streamlit Community Cloud)
 
 ## Video Demonstration
 

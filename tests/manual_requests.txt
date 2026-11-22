@@ -1,0 +1,29 @@
+# Manual requests through Nginx: one per model, plus the proxy checks.
+# Author: Member 5. Paste one block at a time into Git Bash from the repo root.
+# Expected answers come from CONTRACT.md Table B.
+
+# 1. Regression: expect predicted_daily_sales_revenue_kes 208681.74
+curl -k -i -X POST https://localhost/api/v1/models/store-daily-sales-regressor/predictions \
+  -H "Content-Type: application/json" \
+  -d '{"store_size_sqm":180.0,"promotions_active":2,"avg_basket_size_kes":1350.0,"store_age_years":5.2,"online_order_count":45.0,"loyalty_program_members":60,"store_format":"Supermarket","location_type":"Mall","delivery_available":"Yes","store_size_category":"Medium"}'
+
+# 2. Classification: expect "Distressed" (P = 0.9783)
+curl -k -i -X POST https://localhost/api/v1/models/corporate-distress-classifier/predictions \
+  -H "Content-Type: application/json" \
+  -d '{"industry_sector":"Retail","listing_status":"Private","credit_rating_band":"High Risk","audit_going_concern_flag":null,"years_in_operation":3,"num_employees":12,"debt_to_equity_ratio":4.8,"current_ratio":0.6,"interest_coverage_ratio":0.9,"revenue_growth_pct":-18.0,"net_profit_margin_pct":-5.2,"working_capital_to_assets_ratio":-0.15,"macroeconomic_interest_rate_pct":12.5}'
+
+# 3. Clustering: expect assigned_cluster 0, number_of_clusters 3
+curl -k -i -X POST https://localhost/api/v1/models/ecommerce-customer-segmenter/predictions \
+  -H "Content-Type: application/json" \
+  -d '{"recency_days":12,"frequency_per_year":14,"avg_order_value_kes":6200,"num_categories_purchased":5}'
+
+# 4. Recommender: expect Galactic Wars (confidence 0.774, lift 5.0)
+curl -k -i -X POST https://localhost/api/v1/models/streaming-show-recommender/predictions \
+  -H "Content-Type: application/json" \
+  -d '{"watched":["Space Frontier","Time Anomaly"]}'
+
+# 5. HTTP must redirect to HTTPS: expect 301 and "Location: https://localhost/"
+curl -I http://localhost
+
+# 6. Gunicorn must NOT be reachable directly: expect "Failed to connect"
+curl --max-time 3 http://localhost:8000/
