@@ -1,13 +1,11 @@
-Testing http://127.0.0.1:5000
-
-1. Regression (expect 208681.74)
+== LOCAL Sun Nov 22 15:46:39 EAST 2026
+1 Regression (expect 208681.74)
 {
   "model": "Ridge Regressor",
   "predicted_daily_sales_revenue_kes": 208681.74
 }
 
-
-2. Classification (expect Distressed)
+2 Classification (expect Distressed 0.9783)
 {
   "class_probabilities": {
     "Distressed": 0.9783,
@@ -18,16 +16,14 @@ Testing http://127.0.0.1:5000
   "predicted_distress_risk_category": "Distressed"
 }
 
-
-3. Clustering (expect cluster 0)
+3 Clustering (expect cluster 0)
 {
   "assigned_cluster": 0,
   "model": "K-Means E-commerce Customer Segmentation",
   "number_of_clusters": 3
 }
 
-
-4. Recommender (expect Galactic Wars)
+4 Recommender (expect Galactic Wars)
 {
   "matched_rules": [
     {
@@ -64,20 +60,7 @@ Testing http://127.0.0.1:5000
   ]
 }
 
-
-5. Recommender, no match (expect empty list)
-{
-  "matched_rules": [],
-  "message": "No association rule matches these shows, so no recommendation is available.",
-  "model": "Apriori association rules (11 cleaned rules), precomputed lookup",
-  "recommendations": [],
-  "watched": [
-    "Crime City"
-  ]
-}
-
-
-6. Error handling, empty input (expect missing-fields error)
+5 Missing input (expect error)
 {
   "error": "Missing required customer features.",
   "missing_features": [

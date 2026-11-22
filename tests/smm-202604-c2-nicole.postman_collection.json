@@ -1,0 +1,182 @@
+{
+  "info": {
+    "_postman_id": "990b8bc2-cec4-4e76-80cc-b06cb2a6bc58",
+    "name": "smm-202604-c2-nicole",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "46666282",
+    "_collection_link": "https://go.postman.co/collection/46666282-990b8bc2-cec4-4e76-80cc-b06cb2a6bc58?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1 Regression",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"store_size_sqm\": 180.0,\r\n    \"promotions_active\": 2,\r\n    \"avg_basket_size_kes\": 1350.0,\r\n    \"store_age_years\": 5.2,\r\n    \"online_order_count\": 45.0,\r\n    \"loyalty_program_members\": 60,\r\n    \"store_format\": \"Supermarket\",\r\n    \"location_type\": \"Mall\",\r\n    \"delivery_available\": \"Yes\",\r\n    \"store_size_category\": \"Medium\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://smm-202604-c2-nicole.onrender.com/api/v1/models/store-daily-sales-regressor/predictions",
+          "protocol": "https",
+          "host": [
+            "smm-202604-c2-nicole",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "models",
+            "store-daily-sales-regressor",
+            "predictions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2 Classification",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"industry_sector\": \"Retail\",\r\n    \"listing_status\": \"Private\",\r\n    \"credit_rating_band\": \"High Risk\",\r\n    \"audit_going_concern_flag\": null,\r\n    \"years_in_operation\": 3,\r\n    \"num_employees\": 12,\r\n    \"debt_to_equity_ratio\": 4.8,\r\n    \"current_ratio\": 0.6,\r\n    \"interest_coverage_ratio\": 0.9,\r\n    \"revenue_growth_pct\": -18.0,\r\n    \"net_profit_margin_pct\": -5.2,\r\n    \"working_capital_to_assets_ratio\": -0.15,\r\n    \"macroeconomic_interest_rate_pct\": 12.5\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://smm-202604-c2-nicole.onrender.com/api/v1/models/corporate-distress-classifier/predictions",
+          "protocol": "https",
+          "host": [
+            "smm-202604-c2-nicole",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "models",
+            "corporate-distress-classifier",
+            "predictions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3 Clustering",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"recency_days\": 12,\r\n    \"frequency_per_year\": 14,\r\n    \"avg_order_value_kes\": 6200,\r\n    \"num_categories_purchased\": 5\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://smm-202604-c2-nicole.onrender.com/api/v1/models/ecommerce-customer-segmenter/predictions",
+          "protocol": "https",
+          "host": [
+            "smm-202604-c2-nicole",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "models",
+            "ecommerce-customer-segmenter",
+            "predictions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4 Recommender",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"watched\": [\r\n        \"Space Frontier\",\r\n        \"Time Anomaly\"\r\n    ],\r\n    \"top_n\": 3\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://smm-202604-c2-nicole.onrender.com/api/v1/models/streaming-show-recommender/predictions",
+          "protocol": "https",
+          "host": [
+            "smm-202604-c2-nicole",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "models",
+            "streaming-show-recommender",
+            "predictions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5 Missing Input",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://smm-202604-c2-nicole.onrender.com/api/v1/models/ecommerce-customer-segmenter/predictions",
+          "protocol": "https",
+          "host": [
+            "smm-202604-c2-nicole",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "models",
+            "ecommerce-customer-segmenter",
+            "predictions"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base",
+      "value": ""
+    }
+  ]
+}
