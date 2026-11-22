@@ -16,9 +16,9 @@
 
 | **Details**                                                                                                                           | **Comment** |
 |:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Student ID**                                                                                                                        | 168662 |
+| **Name**                                                                                                                              | Lewa Kadzo |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** | I built the corporate financial distress **classification** model and its endpoint (`POST /api/v1/models/corporate-distress-classifier/predictions`), saved as `model/distress_risk_pipeline.joblib` with its label encoder and metadata; the route validates categories and returns the class probabilities. Branch: https://github.com/BI-course/smm-202604-c2/tree/member2-classification-endpoint — What I learned: training the classifier is only half the work: the API has to process inputs exactly as training did. A saved pipeline only carries the steps inside it, so the label encoder and the "Not Flagged" fill that lived outside it had to be handled in the route; a model must be saved with the same scikit-learn version the API runs; and unknown categories should be rejected instead of silently ignored. |
 
 **Member 3:**
 
@@ -26,40 +26,32 @@
 |:--------------------------------------------------------------------------------------------------------------------------------------|:-------------|
 | **Student ID**                                                                                                                        | 169389       |
 | **Name**                                                                                                                              | Juliet Mumbi |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |  I worked on the K-Means clustering part of the lab. I prepared the e-commerce customer data by handling missing values and scaling the selected features before training a K-Means model to group customers into three clusters. I also saved the trained model and integrated it into the Flask API so that users could submit customer details and receive a cluster prediction. I tested the endpoint using cURL. Through this work, I learned how to build a clustering model, save and reuse model artifacts, integrate machine learning models into an API, and collaborate using Git branches and pull requests.            |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |  I worked on the K-Means clustering part of the lab. I prepared the e-commerce customer data by handling missing values and scaling the selected features before training a K-Means model to group customers into three clusters. I also saved the trained model and integrated it into the Flask API so that users could submit customer details and receive a cluster prediction. I tested the endpoint using cURL. Through this work, I learned how to build a clustering model, save and reuse model artifacts, integrate machine learning models into an API, and collaborate using Git branches and pull requests. Branch: https://github.com/BI-course/smm-202604-c2/tree/feature/clustering-ecommerce            |
 
 **Member 4:**
 
 | **Details**                                                                                                                           | **Comment** |
 |:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Student ID**                                                                                                                        | 154683 |
+| **Name**                                                                                                                              | Whitney Karimi |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** | I built the Apriori streaming-show **recommender** endpoint: loaded the saved association rules (`model/apriori_recommendation_rules.joblib`) into `api.py` and built `POST /api/v1/models/streaming-show-recommender/predictions`, plus the recommender HTML page. Branch: https://github.com/BI-course/smm-202604-c2/tree/feature/apriori-streaming — What I learned: mining the association rules is only half the work: the API is what makes them usable. I learned to load saved rules from disk instead of re-mining them on every request, how to match a viewer's shows against rule antecedents, and why ranking by confidence and lift matters. |
 
 **Member 5:**
 
 | **Details**                                                                                                                           | **Comment** |
 |:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Student ID**                                                                                                                        | 129086 |
+| **Name**                                                                                                                              | Faith Njung'e |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** | I set up **Docker, Gunicorn and the Nginx reverse proxy**: generated the self-signed HTTPS certificate with OpenSSL and deployed it to Nginx, built and ran the stack with two Gunicorn replicas (5 workers each) behind Nginx with an HTTP-to-HTTPS redirect, verified all four models through Nginx against their expected answers, and wrote `tests/smoke_nginx.sh`, `tests/manual_requests.txt` and `DOCKER.md`. Branch: https://github.com/BI-course/smm-202604-c2/tree/feature/docker-gunicorn-nginx — What I learned: the same `api.py` behaves differently depending on what serves it. `api.py` and `model/` are copied into the image at build time, so a teammate's merged change needs a rebuild, whereas `nginx.conf` and the certificates are mounted volumes that only need an Nginx restart. Nginx also looks up the replicas only once when it starts, so it must be restarted after scaling. |
 
 **Member 6:**
 
 | **Details**                                                                                                                           | **Comment** |
 |:--------------------------------------------------------------------------------------------------------------------------------------|:------------|
-| **Student ID**                                                                                                                        |             |
-| **Name**                                                                                                                              |             |
-| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** |             |
+| **Student ID**                                                                                                                        | 167317 |
+| **Name**                                                                                                                              | Nicole Mokua |
+| **What part of the lab did you personally<br/>contribute to (provide a link to the<br/>branch(es)), and what did you learn from it?** | I deployed the group's unmodified `api.py` and the six saved artifacts to **Render** (https://smm-202604-c2-nicole.onrender.com) as a Web Service built from `main`, started with Gunicorn on `$PORT`, with scikit-learn pinned through `requirements/constraints.txt`. I tested all four public endpoints with curl and a Postman collection (plus the missing-input error case) and documented the request/response formats in `tests/RENDER.md`, with local-vs-Render results and screenshots in `tests/`. I deployed the same artifacts to a **Hugging Face Space** (Gradio, four tabs), verified the group's **Streamlit** app, coordinated end-to-end testing across all surfaces and assembled the demo video. Branch: https://github.com/BI-course/smm-202604-c2/tree/feature/render-deploy — What I learned: a pickled model only loads reliably when the server installs the same library versions it was saved with, which is why the constraints file matters more than the code; free-tier hosts sleep and the first request can take close to a minute; and the same artifacts must give identical answers on every surface, which is the real proof that nothing was retrained. |
 
-> **Member 6 — fill this in yourself before we submit.** Suggested starting point (rewrite it in
-> your own words, and make sure the "what I learned" part is actually yours — it is your mark):
-> *"I deployed the group's unmodified `api.py` to Render as a Web Service built from `main`, started
-> with Gunicorn on `$PORT` and with the scikit-learn version pinned via `requirements/constraints.txt`
-> so the saved artifacts load with the version they were trained with. I verified all four endpoints
-> against the public URL and coordinated the demo video. Branch:
-> https://github.com/BI-course/smm-202604-c2/tree/feature/render-deploy — What I learned: …"*
-> Delete this note once your row is filled in.
 
 ---
 
@@ -81,7 +73,7 @@ At minimum, the video must show, in one continuous walkthrough:
 
 Note that you are required to submit the link to the video and NOT the video itself. The video should NOT be uploaded to your repository—that would be a misuse of GitHub.
 
-**Link to the video:**
+**Link to the video:** https://drive.google.com/file/d/1d6OEFAEgpzEk2CQ9-oW3vnCsPiT7z53r/view?usp=sharing
 
 ## Public URLs
 
@@ -89,9 +81,9 @@ Fill in only the rows that apply to your chosen difficulty level (see Part C bel
 
 | **Deployment target**                             | **URL** |
 |:--------------------------------------------------|:--------|
-| Render (the full `api.py`, all endpoints)         |         |
-| Hugging Face Space (Gradio, one tab per model)    |         |
-| Streamlit Community Cloud app (one tab per model) |         |
+| Render (the full `api.py`, all endpoints)         | https://smm-202604-c2-nicole.onrender.com |
+| Hugging Face Space (Gradio, one tab per model)    | https://huggingface.co/spaces/nimoks/smm-202604-c2-nicole |
+| Streamlit Community Cloud app (one tab per model) | https://smm-202604-c2-lewa.streamlit.app |
 
 ---
 

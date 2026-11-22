@@ -16,7 +16,7 @@ Repo: `https://github.com/BI-course/smm-202604-c2` · Lead: Member 1 · Tier: **
 | 3      | E-commerce customer clustering              | `feature/clustering-ecommerce`    | JulietMumbi                 |
 | 4      | Streaming show recommender (Apriori)        | `feature/apriori-streaming`       | whitneykrm                  |
 | 5      | Docker + Gunicorn + Nginx                   | `feature/docker-gunicorn-nginx`   | Dipsy37                     |
-| 6      | Render deployment + video                   | `feature/render-deploy`           | _TBC_                       |
+| 6      | Render deployment + video                   | `feature/render-deploy`           | nicolemokua                 |
 
 ---
 
